@@ -3,50 +3,46 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeftRight,
-  Box,
-  Heart,
-  LogOut,
-  MessageCircle,
-  Star,
-  User,
-} from "lucide-react";
+  IconArrowLeftRight, IconBox, IconHeart, IconLogOut,
+  IconMessageCircle, IconUser,
+} from "@/components/icons";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "My Listings", icon: Box },
-  { href: "/dashboard/offers", label: "Swap Offers", icon: ArrowLeftRight },
-  { href: "/dashboard/messages", label: "Messages", icon: MessageCircle },
-  { href: "/dashboard/wishlist", label: "Wishlist & Alerts", icon: Heart },
-  { href: "/dashboard/profile", label: "Profile & Trust", icon: User },
+  { href: "/dashboard",           label: "My Listings",     icon: IconBox           },
+  { href: "/dashboard/offers",    label: "Swap Offers",     icon: IconArrowLeftRight },
+  { href: "/dashboard/messages",  label: "Messages",        icon: IconMessageCircle },
+  { href: "/dashboard/wishlist",  label: "Wishlist",        icon: IconHeart         },
+  { href: "/dashboard/profile",   label: "Profile & Trust", icon: IconUser          },
 ];
 
 export function DashboardNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="mt-4 space-y-1">
+    <nav className="mt-5 space-y-0.5">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
         const active = pathname === href;
         return (
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
               active
-                ? "bg-swapshelf-green text-white"
-                : "text-gray-700 hover:bg-gray-100"
+                ? "bg-green text-white shadow-sm"
+                : "text-muted hover:bg-gray-100 hover:text-foreground"
             }`}
           >
-            <Icon className="h-5 w-5" strokeWidth={active ? 2 : 1.5} />
+            <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={active ? 2.5 : 1.75} />
             {label}
           </Link>
         );
       })}
+      <div className="my-2 border-t border-border" />
       <Link
         href="/"
-        className="mt-6 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
+        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
       >
-        <LogOut className="h-5 w-5" />
+        <IconLogOut className="h-4.5 w-4.5 shrink-0" strokeWidth={1.75} />
         Log Out
       </Link>
     </nav>

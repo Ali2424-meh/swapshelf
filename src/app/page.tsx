@@ -1,8 +1,8 @@
-import { ChevronDown, MapPin, Search } from "lucide-react";
 import Link from "next/link";
 import { ListingCard } from "@/components/listing-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { IconChevronDown, IconMapPin, IconSearch } from "@/components/icons";
 import { CATEGORIES, NEARBY_LISTINGS, RADIUS_OPTIONS } from "@/lib/constants";
 
 export default function HomePage() {
@@ -10,57 +10,91 @@ export default function HomePage() {
     <>
       <SiteHeader activeLink="browse" />
       <main>
-        <section className="bg-swapshelf-green px-4 py-16 text-center text-white sm:py-20">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            Trade what you have. Get what you love.
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-green-50">
-            Join your local community to swap books, games, and more.
-          </p>
-          <form className="mx-auto mt-8 flex max-w-3xl flex-col gap-2 rounded-full bg-white p-2 shadow-lg sm:flex-row sm:items-center">
-            <div className="flex flex-1 items-center gap-2 px-4 py-2">
-              <Search className="h-5 w-5 shrink-0 text-gray-400" />
-              <input
-                type="search"
-                placeholder="Search for items, categories..."
-                className="w-full bg-transparent text-gray-900 placeholder:text-gray-400 focus:outline-none"
-              />
-            </div>
-            <div className="hidden h-8 w-px bg-gray-200 sm:block" />
-            <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-2 sm:border-t-0">
-              <MapPin className="h-5 w-5 shrink-0 text-gray-400" />
-              <select
-                defaultValue={RADIUS_OPTIONS[0]}
-                className="cursor-pointer bg-transparent text-sm font-medium text-gray-700 focus:outline-none"
+        {/* Hero */}
+        <section className="relative overflow-hidden bg-green px-4 py-20 text-center text-white sm:py-28">
+          {/* Subtle texture */}
+          <div className="pointer-events-none absolute inset-0 opacity-10"
+            style={{backgroundImage:"radial-gradient(circle at 20% 50%, #fff 0%, transparent 50%), radial-gradient(circle at 80% 20%, #fff 0%, transparent 40%)"}} />
+          <div className="relative">
+            <span className="inline-block rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm font-medium backdrop-blur-sm">
+              🌿 Free to join · No money needed
+            </span>
+            <h1 className="font-display mx-auto mt-5 max-w-2xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
+              Trade what you have.<br />
+              <span className="text-amber-300">Get what you love.</span>
+            </h1>
+            <p className="mx-auto mt-5 max-w-lg text-lg text-green-100">
+              Join your local community to swap books, games, and more — no cash required.
+            </p>
+            {/* Search bar */}
+            <div className="mx-auto mt-10 flex max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:flex-row sm:items-center">
+              <div className="flex flex-1 items-center gap-3 px-5 py-3.5">
+                <IconSearch className="h-5 w-5 shrink-0 text-muted" />
+                <input
+                  type="search"
+                  placeholder="Search books, games, tech..."
+                  className="w-full bg-transparent text-foreground placeholder:text-muted focus:outline-none"
+                />
+              </div>
+              <div className="hidden h-8 w-px bg-border sm:block" />
+              <div className="flex items-center gap-1.5 border-t border-border px-4 py-3 sm:border-t-0">
+                <IconMapPin className="h-4 w-4 shrink-0 text-muted" />
+                <select
+                  defaultValue={RADIUS_OPTIONS[0]}
+                  className="cursor-pointer bg-transparent text-sm font-medium text-foreground focus:outline-none"
+                >
+                  {RADIUS_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                <IconChevronDown className="h-3.5 w-3.5 text-muted" />
+              </div>
+              <button
+                type="submit"
+                className="m-1.5 rounded-xl bg-orange px-7 py-3 font-semibold text-white transition hover:bg-orange-hover"
               >
-                {RADIUS_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
+                Search
+              </button>
             </div>
-            <button
-              type="submit"
-              className="rounded-full bg-swapshelf-orange px-8 py-3 font-semibold text-white transition hover:bg-swapshelf-orange-hover sm:py-2.5"
-            >
-              Search
-            </button>
-          </form>
+          </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          <h2 className="text-xl font-bold text-gray-900">Browse Categories</h2>
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
-            {CATEGORIES.map(({ name, slug, icon: Icon }) => (
+        {/* Stats bar */}
+        <section className="border-b border-border bg-card">
+          <div className="mx-auto flex max-w-6xl divide-x divide-border px-4 sm:px-6">
+            {[
+              { label: "Active listings",   value: "3,892" },
+              { label: "Community members", value: "1,248" },
+              { label: "Completed swaps",   value: "9,641" },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex flex-1 flex-col items-center py-5 text-center">
+                <span className="font-display text-2xl font-semibold text-green">{value}</span>
+                <span className="mt-0.5 text-xs text-muted">{label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Categories */}
+        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="font-display text-2xl font-semibold text-foreground">Browse Categories</h2>
+              <p className="mt-1 text-sm text-muted">Find what you&apos;re looking for</p>
+            </div>
+            <Link href="/browse" className="text-sm font-semibold text-green hover:text-green-dark">
+              View all →
+            </Link>
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            {CATEGORIES.map(({ name, slug, icon: Icon, emoji }) => (
               <Link
                 key={slug}
                 href={`/browse?category=${slug}`}
-                className="flex flex-col items-center gap-3 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition hover:shadow-md"
+                className="card-hover group flex flex-col items-center gap-3 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border"
               >
-                <Icon className="h-8 w-8 text-swapshelf-green" strokeWidth={1.5} />
-                <span className="text-center text-sm font-semibold text-gray-900">
+                <span className="text-3xl">{emoji}</span>
+                <span className="text-center text-xs font-semibold text-foreground group-hover:text-green">
                   {name}
                 </span>
               </Link>
@@ -68,20 +102,47 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Newly Listed Nearby</h2>
-            <Link
-              href="/browse"
-              className="text-sm font-semibold text-swapshelf-green hover:text-swapshelf-green-dark"
-            >
-              View all
+        {/* Listings */}
+        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="font-display text-2xl font-semibold text-foreground">Newly Listed Nearby</h2>
+              <p className="mt-1 text-sm text-muted">Fresh items from your community</p>
+            </div>
+            <Link href="/browse" className="text-sm font-semibold text-green hover:text-green-dark">
+              View all →
             </Link>
           </div>
-          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {NEARBY_LISTINGS.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {NEARBY_LISTINGS.map((listing, i) => (
+              <div key={listing.id} className={`animate-fade-up animate-fade-up-${Math.min(i + 1, 6)}`}>
+                <ListingCard listing={listing} />
+              </div>
             ))}
+          </div>
+        </section>
+
+        {/* CTA Banner */}
+        <section className="mx-4 mb-20 overflow-hidden rounded-3xl bg-foreground px-6 py-14 text-center text-white sm:mx-6 sm:py-16">
+          <h2 className="font-display text-3xl font-semibold sm:text-4xl">
+            Ready to start swapping?
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-gray-400">
+            Join thousands of locals trading items they love. It&apos;s free, safe, and easy.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/signup"
+              className="rounded-xl bg-green px-8 py-3.5 font-semibold text-white shadow-sm hover:bg-green-dark"
+            >
+              Create free account
+            </Link>
+            <Link
+              href="/how-it-works"
+              className="rounded-xl border border-white/20 bg-white/10 px-8 py-3.5 font-semibold text-white hover:bg-white/20"
+            >
+              How it works
+            </Link>
           </div>
         </section>
       </main>

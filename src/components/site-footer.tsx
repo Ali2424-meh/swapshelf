@@ -1,7 +1,66 @@
+import Link from "next/link";
+import { Logo } from "./logo";
+
+const FOOTER_LINKS = [
+  {
+    heading: "Product",
+    links: [
+      { label: "Browse listings", href: "/browse" },
+      { label: "How it works",   href: "/how-it-works" },
+      { label: "Sign up free",   href: "/signup" },
+    ],
+  },
+  {
+    heading: "Support",
+    links: [
+      { label: "FAQ",             href: "#" },
+      { label: "Safety tips",     href: "#" },
+      { label: "Contact us",      href: "#" },
+    ],
+  },
+  {
+    heading: "Legal",
+    links: [
+      { label: "Privacy policy",  href: "#" },
+      { label: "Terms of service",href: "#" },
+      { label: "Cookie policy",   href: "#" },
+    ],
+  },
+];
+
 export function SiteFooter() {
   return (
-    <footer className="mt-auto bg-gray-900 py-6 text-center text-sm text-white">
-      © 2026 SwapShelf. All rights reserved.
+    <footer className="mt-auto border-t border-border bg-card">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-4">
+            <Logo />
+            <p className="text-sm leading-relaxed text-muted">
+              A local marketplace for trading items you no longer need — no money required.
+            </p>
+          </div>
+          {FOOTER_LINKS.map(({ heading, links }) => (
+            <div key={heading}>
+              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-foreground">
+                {heading}
+              </h4>
+              <ul className="space-y-2">
+                {links.map(({ label, href }) => (
+                  <li key={label}>
+                    <Link href={href} className="text-sm text-muted hover:text-foreground">
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border pt-8 sm:flex-row">
+          <p className="text-xs text-muted">© 2026 SwapShelf. All rights reserved.</p>
+          <p className="text-xs text-muted">Built for communities, not corporations.</p>
+        </div>
+      </div>
     </footer>
   );
 }
