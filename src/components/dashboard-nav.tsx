@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { logoutAction } from "@/app/auth/actions";
 import {
   IconArrowLeftRight, IconBox, IconHeart, IconLogOut,
   IconMessageCircle, IconUser,
@@ -38,13 +39,15 @@ export function DashboardNav() {
         );
       })}
       <div className="my-2 border-t border-border" />
-      <Link
-        href="/"
-        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
-      >
-        <IconLogOut className="h-4.5 w-4.5 shrink-0" strokeWidth={1.75} />
-        Log Out
-      </Link>
+      <form action={logoutAction}>
+        <button
+          type="submit"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
+        >
+          <IconLogOut className="h-4.5 w-4.5 shrink-0" strokeWidth={1.75} />
+          Log Out
+        </button>
+      </form>
     </nav>
   );
 }

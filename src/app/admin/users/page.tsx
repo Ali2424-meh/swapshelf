@@ -1,42 +1,73 @@
-import { IconSearch, IconChevronDown } from "@/components/icons";
+import { updateUserStatusAction } from "@/app/auth/actions";
+import { getAdminUsers } from "@/lib/data";
 
-export default function AdminUsersPage() {
+const STATUS_COLORS: Record<string, string> = {
+  active: "bg-green-100 text-green-800",
+  flagged: "bg-red-100 text-red-700",
+  banned: "bg-stone-200 text-stone-700",
+};
+
+export default async function AdminUsersPage() {
+  const users = await getAdminUsers();
+
   return (
     <div className="animate-fade-up space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-semibold text-foreground">Manage Users</h1>
-          <p className="mt-0.5 text-sm text-muted">Search, review, and moderate user accounts</p>
-        </div>
-        <button className="rounded-xl bg-green px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-dark">
-          Export CSV
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="flex flex-1 items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
-          <IconSearch className="h-4 w-4 shrink-0 text-muted" />
-          <input
-            type="search" placeholder="Search by name or email…"
-            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted focus:outline-none"
-          />
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5">
-          <select className="bg-transparent text-sm text-foreground focus:outline-none">
-            <option>All statuses</option>
-            <option>Active</option>
-            <option>Flagged</option>
-            <option>Banned</option>
-          </select>
-          <IconChevronDown className="h-3.5 w-3.5 text-muted" />
+          <p className="mt-0.5 text-sm text-muted">Review and moderate user accounts</p>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-card px-6 py-14 text-center shadow-sm ring-1 ring-border">
-        <span className="text-5xl">🔌</span>
-        <p className="mt-4 font-display text-lg font-semibold text-foreground">Connect to database</p>
-        <p className="mt-2 text-sm text-muted">User management table loads from Supabase once the database is configured.</p>
+      <div className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-background">
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">User</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Role</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Swaps</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Moderate</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {users.map((user) => (
+              <tr key={user.id} className="hover:bg-background/60">
+                <td className="px-6 py-4">
+                  <p className="font-medium text-foreground">{user.name}</p>
+                  <p className="text-xs text-muted">{user.email}</p>
+                </td>
+                <td className="px-6 py-4 capitalize text-muted">{user.role}</td>
+                <td className="px-6 py-4 font-medium text-foreground">{user.completedSwaps}</td>
+                <td className="px-6 py-4">
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_COLORS[user.status] ?? STATUS_COLORS.active}`}>
+                    {user.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <form action={updateUserStatusAction} className="flex items-center gap-2">
+                    <input type="hidden" name="user_id" value={user.id} />
+                    <select name="status" defaultValue={user.status} className="rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground">
+                      <option value="active">Active</option>
+                      <option value="flagged">Flagged</option>
+                      <option value="banned">Banned</option>
+                    </select>
+                    <button className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark">
+                      Save
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+            {!users.length && (
+              <tr>
+                <td colSpan={5} className="px-6 py-12 text-center text-sm text-muted">
+                  No users yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

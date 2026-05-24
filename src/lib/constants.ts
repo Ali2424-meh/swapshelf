@@ -1,45 +1,69 @@
 import type { ComponentType } from "react";
 import {
-  IconBookOpen, IconGamepad, IconPuzzle, IconBlocks,
-  IconDisc, IconLaptop, IconScissors,
+  IconBlocks,
+  IconBookOpen,
+  IconDisc,
+  IconGamepad,
+  IconLaptop,
+  IconPuzzle,
+  IconScissors,
 } from "@/components/icons";
 
 type IconComponent = ComponentType<{ className?: string; strokeWidth?: number }>;
 
-export const CATEGORIES: { name: string; slug: string; icon: IconComponent; emoji: string }[] = [
-  { name: "Books",       slug: "books",       icon: IconBookOpen, emoji: "📚" },
-  { name: "Video Games", slug: "video-games", icon: IconGamepad,  emoji: "🎮" },
-  { name: "Board Games", slug: "board-games", icon: IconPuzzle,   emoji: "🧩" },
-  { name: "Toys",        slug: "toys",        icon: IconBlocks,   emoji: "🧸" },
-  { name: "Music & DVDs",slug: "music-dvds",  icon: IconDisc,     emoji: "💿" },
-  { name: "Tech",        slug: "tech",        icon: IconLaptop,   emoji: "💻" },
-  { name: "Craft & Hobby",slug: "craft-hobby",icon: IconScissors, emoji: "✂️" },
+export type CategoryDisplay = {
+  id?: string;
+  name: string;
+  slug: string;
+  icon: IconComponent;
+  emoji: string;
+  active?: boolean;
+  sort_order?: number;
+};
+
+export const FALLBACK_CATEGORIES: CategoryDisplay[] = [
+  { name: "Books", slug: "books", icon: IconBookOpen, emoji: "📚", active: true, sort_order: 10 },
+  { name: "Video Games", slug: "video-games", icon: IconGamepad, emoji: "🎮", active: true, sort_order: 20 },
+  { name: "Board Games", slug: "board-games", icon: IconPuzzle, emoji: "🧩", active: true, sort_order: 30 },
+  { name: "Toys", slug: "toys", icon: IconBlocks, emoji: "🧸", active: true, sort_order: 40 },
+  { name: "Music & DVDs", slug: "music-dvds", icon: IconDisc, emoji: "💿", active: true, sort_order: 50 },
+  { name: "Tech", slug: "tech", icon: IconLaptop, emoji: "💻", active: true, sort_order: 60 },
+  { name: "Craft & Hobby", slug: "craft-hobby", icon: IconScissors, emoji: "✂️", active: true, sort_order: 70 },
 ];
 
 export const RADIUS_OPTIONS = [
-  "Within 5 km",
-  "Within 10 km",
-  "Within 25 km",
-  "Within 50 km",
+  { label: "Within 5 km", value: 5 },
+  { label: "Within 10 km", value: 10 },
+  { label: "Within 25 km", value: 25 },
+  { label: "Within 50 km", value: 50 },
 ];
 
 export type Listing = {
   id: string;
   title: string;
+  description?: string | null;
+  wants?: string | null;
   category: string;
-  distanceKm: number;
+  categorySlug?: string;
+  categoryEmoji?: string;
+  distanceKm: number | null;
+  ownerId?: string;
   ownerName: string;
   ownerInitials: string;
   rating: number;
+  imageUrl?: string | null;
   imageGradient: string;
   condition: "Like New" | "Good" | "Fair";
+  isSaved?: boolean;
 };
 
-export const NEARBY_LISTINGS: Listing[] = [
+export const FALLBACK_LISTINGS: Listing[] = [
   {
-    id: "1",
+    id: "demo-1",
     title: "The Last of Us Part II (PS4)",
     category: "Video Games",
+    categorySlug: "video-games",
+    categoryEmoji: "🎮",
     distanceKm: 2.5,
     ownerName: "Alex M.",
     ownerInitials: "AM",
@@ -48,9 +72,11 @@ export const NEARBY_LISTINGS: Listing[] = [
     condition: "Like New",
   },
   {
-    id: "2",
-    title: "Dune — Hardcover First Edition",
+    id: "demo-2",
+    title: "Dune Hardcover First Edition",
     category: "Books",
+    categorySlug: "books",
+    categoryEmoji: "📚",
     distanceKm: 1.2,
     ownerName: "Sam K.",
     ownerInitials: "SK",
@@ -59,9 +85,11 @@ export const NEARBY_LISTINGS: Listing[] = [
     condition: "Good",
   },
   {
-    id: "3",
-    title: "Catan — Complete Set",
+    id: "demo-3",
+    title: "Catan Complete Set",
     category: "Board Games",
+    categorySlug: "board-games",
+    categoryEmoji: "🧩",
     distanceKm: 4.1,
     ownerName: "Jordan P.",
     ownerInitials: "JP",
@@ -69,47 +97,8 @@ export const NEARBY_LISTINGS: Listing[] = [
     imageGradient: "from-emerald-400 to-teal-500",
     condition: "Like New",
   },
-  {
-    id: "4",
-    title: "MacBook Pro Sleeve (13-inch)",
-    category: "Tech",
-    distanceKm: 0.8,
-    ownerName: "Maya R.",
-    ownerInitials: "MR",
-    rating: 4.7,
-    imageGradient: "from-sky-400 to-blue-500",
-    condition: "Like New",
-  },
-  {
-    id: "5",
-    title: "Elden Ring (Xbox Series X)",
-    category: "Video Games",
-    distanceKm: 3.3,
-    ownerName: "Leo T.",
-    ownerInitials: "LT",
-    rating: 5.0,
-    imageGradient: "from-yellow-500 to-amber-600",
-    condition: "Good",
-  },
-  {
-    id: "6",
-    title: "Watercolour Starter Kit",
-    category: "Craft & Hobby",
-    distanceKm: 5.7,
-    ownerName: "Nina W.",
-    ownerInitials: "NW",
-    rating: 4.5,
-    imageGradient: "from-rose-300 to-pink-500",
-    condition: "Fair",
-  },
 ];
 
-export const ADMIN_STATS = {
-  totalUsers: 1248,
-  usersGrowth: "+12%",
-  activeListings: 3892,
-  listingsGrowth: "+8%",
-  completedSwaps: 9641,
-  swapsGrowth: "+21%",
-  pendingReports: 14,
-};
+export function iconForCategory(slug?: string) {
+  return FALLBACK_CATEGORIES.find((category) => category.slug === slug)?.icon ?? IconBookOpen;
+}

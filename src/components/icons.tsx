@@ -1,13 +1,16 @@
 // Pure SVG icon components — no external icon library needed
 type IconProps = { className?: string; strokeWidth?: number; filled?: boolean };
 
-const ic = (paths: string, vb = "0 0 24 24") =>
-  ({ className = "h-5 w-5", strokeWidth = 2, filled = false }: IconProps) => (
+const ic = (paths: string, vb = "0 0 24 24") => {
+  const Icon = ({ className = "h-5 w-5", strokeWidth = 2, filled = false }: IconProps) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox={vb} fill={filled ? "currentColor" : "none"}
       stroke={filled ? "none" : "currentColor"} strokeWidth={strokeWidth}
       strokeLinecap="round" strokeLinejoin="round" className={className}
       dangerouslySetInnerHTML={{ __html: paths }} />
   );
+  Icon.displayName = "Icon";
+  return Icon;
+};
 
 export const IconSearch = ic('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>');
 export const IconMapPin = ic('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>');

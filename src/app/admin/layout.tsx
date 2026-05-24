@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { AdminNav } from "@/components/admin-nav";
 import { IconShield } from "@/components/icons";
+import { requireAdmin } from "@/lib/auth";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export const dynamic = "force-dynamic";
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const currentUser = await requireAdmin();
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -17,6 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <AdminNav />
         </div>
         <div className="px-3 py-3 border-t border-white/10 mt-4">
+          <p className="mb-1 text-xs font-medium text-gray-300">{currentUser.profile.display_name}</p>
           <p className="text-xs text-gray-500">SwapShelf v1.0.0</p>
         </div>
       </aside>

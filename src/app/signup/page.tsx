@@ -1,7 +1,16 @@
 import Link from "next/link";
+import { signupAction } from "@/app/auth/actions";
 import { Logo } from "@/components/logo";
 
-export default function SignUpPage() {
+type SignUpPageProps = {
+  searchParams?: Promise<{
+    error?: string;
+  }>;
+};
+
+export default async function SignUpPage({ searchParams }: SignUpPageProps) {
+  const params = await searchParams;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="flex h-16 items-center px-6">
@@ -12,13 +21,24 @@ export default function SignUpPage() {
           <div className="rounded-3xl bg-card p-8 shadow-sm ring-1 ring-border sm:p-10">
             <h1 className="font-display text-3xl font-semibold text-foreground">Join SwapShelf</h1>
             <p className="mt-2 text-sm text-muted">Create a free account and start swapping locally.</p>
-            <form className="mt-8 space-y-5" action="/dashboard">
+
+            {params?.error && (
+              <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {params.error}
+              </p>
+            )}
+
+            <form className="mt-8 space-y-5" action={signupAction}>
               <div>
                 <label htmlFor="name" className="block text-sm font-semibold text-foreground">
                   Display name
                 </label>
                 <input
-                  id="name" name="name" type="text" required placeholder="Alex Morgan"
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  placeholder="Alex Morgan"
                   className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
                 />
               </div>
@@ -27,7 +47,11 @@ export default function SignUpPage() {
                   Email address
                 </label>
                 <input
-                  id="email" name="email" type="email" required autoComplete="email"
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
                   placeholder="you@example.com"
                   className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
                 />
@@ -37,8 +61,12 @@ export default function SignUpPage() {
                   Password
                 </label>
                 <input
-                  id="password" name="password" type="password" required
-                  autoComplete="new-password" placeholder="At least 8 characters"
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
                   className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
                 />
               </div>
@@ -47,7 +75,9 @@ export default function SignUpPage() {
                   Your area <span className="font-normal text-muted">(optional)</span>
                 </label>
                 <input
-                  id="location" name="location" type="text"
+                  id="location"
+                  name="location"
+                  type="text"
                   placeholder="City or postal code"
                   className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
                 />
@@ -56,9 +86,13 @@ export default function SignUpPage() {
                 <input type="checkbox" required className="mt-0.5 h-4 w-4 rounded border-border accent-green" />
                 <span className="text-sm text-muted">
                   I agree to the{" "}
-                  <Link href="#" className="text-green hover:underline">Terms of Service</Link>
-                  {" "}and{" "}
-                  <Link href="#" className="text-green hover:underline">Privacy Policy</Link>
+                  <Link href="#" className="text-green hover:underline">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="#" className="text-green hover:underline">
+                    Privacy Policy
+                  </Link>
                 </span>
               </label>
               <button

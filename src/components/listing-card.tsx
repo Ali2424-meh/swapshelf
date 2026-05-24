@@ -1,3 +1,4 @@
+import { createOfferAction, createReportAction, toggleSavedListingAction } from "@/app/auth/actions";
 import { IconHeart, IconMapPin, IconStar } from "@/components/icons";
 import type { Listing } from "@/lib/constants";
 
@@ -7,20 +8,29 @@ const CONDITION_COLORS: Record<string, string> = {
   "Fair":     "bg-orange-100 text-orange-800",
 };
 
-export function ListingCard({ listing }: { listing: Listing }) {
+export function ListingCard({ listing, returnTo = "/browse" }: { listing: Listing; returnTo?: string }) {
   return (
     <article className="card-hover group overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
       <div className="relative">
-        <div className={`flex h-44 items-center justify-center bg-gradient-to-br ${listing.imageGradient}`}>
-          <span className="text-4xl opacity-60 select-none">{getCategoryEmoji(listing.category)}</span>
-        </div>
-        <button
-          type="button"
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm hover:bg-white"
-          aria-label="Add to wishlist"
-        >
-          <IconHeart className="h-4 w-4 text-muted" />
-        </button>
+        {listing.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={listing.imageUrl} alt={listing.title} className="h-44 w-full object-cover" />
+        ) : (
+          <div className={`flex h-44 items-center justify-center bg-gradient-to-br ${listing.imageGradient}`}>
+            <span className="select-none text-4xl opacity-60">{listing.categoryEmoji ?? getCategoryEmoji(listing.category)}</span>
+          </div>
+        )}
+        <form action={toggleSavedListingAction} className="absolute right-3 top-3">
+          <input type="hidden" name="listing_id" value={listing.id} />
+          <input type="hidden" name="next" value={returnTo} />
+          <button
+            type="submit"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm hover:bg-white"
+            aria-label={listing.isSaved ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <IconHeart className={`h-4 w-4 ${listing.isSaved ? "fill-red-500 text-red-500" : "text-muted"}`} filled={listing.isSaved} />
+          </button>
+        </form>
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
           <span className="rounded-full bg-black/50 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
             {listing.category}
@@ -51,13 +61,25 @@ export function ListingCard({ listing }: { listing: Listing }) {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            className="rounded-lg border-2 border-green px-3 py-1.5 text-sm font-semibold text-green transition hover:bg-green hover:text-white"
-          >
-            Offer Swap
-          </button>
+          <form action={createOfferAction}>
+            <input type="hidden" name="listing_id" value={listing.id} />
+            <button
+              type="submit"
+              className="rounded-lg border-2 border-green px-3 py-1.5 text-sm font-semibold text-green transition hover:bg-green hover:text-white"
+            >
+              Offer Swap
+            </button>
+          </form>
         </div>
+        <form action={createReportAction} className="mt-3 text-right">
+          <input type="hidden" name="target_type" value="listing" />
+          <input type="hidden" name="target_id" value={listing.id} />
+          <input type="hidden" name="reason" value="Listing concern" />
+          <input type="hidden" name="next" value={returnTo} />
+          <button type="submit" className="text-xs font-medium text-muted hover:text-red-600">
+            Report listing
+          </button>
+        </form>
       </div>
     </article>
   );
