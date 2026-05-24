@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createListingAction } from "@/app/auth/actions";
+import { FormDropdown } from "@/components/form-dropdown";
 import { IconUpload } from "@/components/icons";
 import { getCategories } from "@/lib/data";
 
@@ -11,6 +12,20 @@ type NewListingPageProps = {
 
 export default async function NewListingPage({ searchParams }: NewListingPageProps) {
   const [categories, params] = await Promise.all([getCategories(), searchParams]);
+  const dropdownClass =
+    "relative mt-2 flex w-full items-center rounded-xl border border-border bg-background px-4 py-3 text-foreground transition focus-within:border-green focus-within:ring-2 focus-within:ring-green/20";
+  const categoryOptions = [
+    { value: "", label: "Select a category..." },
+    ...categories
+      .filter((category) => category.id)
+      .map(({ id, name, emoji }) => ({ value: id!, label: `${emoji} ${name}` })),
+  ];
+  const conditionOptions = [
+    { value: "", label: "Select condition..." },
+    { value: "like_new", label: "Like New, barely used" },
+    { value: "good", label: "Good, some wear and fully functional" },
+    { value: "fair", label: "Fair, visible wear and works fine" },
+  ];
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -43,37 +58,25 @@ export default async function NewListingPage({ searchParams }: NewListingPagePro
             <label htmlFor="category_id" className="block text-sm font-semibold text-foreground">
               Category <span className="font-normal text-orange">*</span>
             </label>
-            <select
+            <FormDropdown
               id="category_id"
               name="category_id"
-              required
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:border-green focus:outline-none"
-            >
-              <option value="">Select a category...</option>
-              {categories
-                .filter((category) => category.id)
-                .map(({ id, name }) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-            </select>
+              options={categoryOptions}
+              defaultValue=""
+              className={dropdownClass}
+            />
           </div>
           <div>
             <label htmlFor="condition" className="block text-sm font-semibold text-foreground">
               Condition <span className="font-normal text-orange">*</span>
             </label>
-            <select
+            <FormDropdown
               id="condition"
               name="condition"
-              required
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:border-green focus:outline-none"
-            >
-              <option value="">Select condition...</option>
-              <option value="like_new">Like New, barely used</option>
-              <option value="good">Good, some wear and fully functional</option>
-              <option value="fair">Fair, visible wear and works fine</option>
-            </select>
+              options={conditionOptions}
+              defaultValue=""
+              className={dropdownClass}
+            />
           </div>
         </div>
 

@@ -52,6 +52,9 @@ const profileSchema = z.object({
 });
 
 const uuidSchema = z.uuid();
+const maxListingPhotos = 6;
+const maxListingPhotoSize = 10 * 1024 * 1024;
+const allowedListingPhotoTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 function configuredOrRedirect(path = "/login") {
   if (!hasSupabaseEnv()) {
@@ -98,6 +101,10 @@ function conditionLabelToValue(raw: string) {
   return raw;
 }
 
+function listingPhotoError(message: string): never {
+  redirect(`/dashboard/listings/new?error=${encodeURIComponent(message)}`);
+}
+
 export async function loginAction(formData: FormData) {
   configuredOrRedirect("/login");
 
@@ -112,7 +119,7 @@ export async function loginAction(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
@@ -121,8 +128,23 @@ export async function loginAction(formData: FormData) {
     authError("/login", error.message);
   }
 
+  const requestedNext = nextPath(formData.get("next"), "/dashboard");
+  let destination = requestedNext;
+
+  if (requestedNext === "/dashboard" && data.user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profile?.role === "admin") {
+      destination = "/admin";
+    }
+  }
+
   revalidatePath("/", "layout");
-  redirect(nextPath(formData.get("next"), "/dashboard"));
+  redirect(destination);
 }
 
 export async function signupAction(formData: FormData) {
@@ -213,7 +235,19 @@ export async function createListingAction(formData: FormData) {
   const photos = formData
     .getAll("photos")
     .filter((entry): entry is File => entry instanceof File && entry.size > 0)
-    .slice(0, 6);
+    .slice(0, maxListingPhotos);
+
+  for (const photo of photos) {
+    if (photo.size > maxListingPhotoSize) {
+      await supabase.from("listings").delete().eq("id", listing.id);
+      listingPhotoError("Each photo must be 10 MB or smaller.");
+    }
+
+    if (!allowedListingPhotoTypes.has(photo.type)) {
+      await supabase.from("listings").delete().eq("id", listing.id);
+      listingPhotoError("Photos must be PNG, JPG, WEBP, or GIF files.");
+    }
+  }
 
   for (const [index, photo] of photos.entries()) {
     const ext = photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
@@ -227,14 +261,15 @@ export async function createListingAction(formData: FormData) {
       });
 
     if (uploadError) {
-      continue;
+      await supabase.from("listings").delete().eq("id", listing.id);
+      listingPhotoError(uploadError.message || "Could not upload one of the photos.");
     }
 
     const {
       data: { publicUrl },
     } = supabase.storage.from("listing-photos").getPublicUrl(path);
 
-    await supabase.from("listing_images").insert({
+    const { error: imageError } = await supabase.from("listing_images").insert({
       listing_id: listing.id,
       owner_id: currentUser.id,
       storage_path: path,
@@ -242,6 +277,12 @@ export async function createListingAction(formData: FormData) {
       alt_text: parsed.data.title,
       sort_order: index,
     });
+
+    if (imageError) {
+      await supabase.storage.from("listing-photos").remove([path]);
+      await supabase.from("listings").delete().eq("id", listing.id);
+      listingPhotoError(imageError.message || "Could not save one of the uploaded photos.");
+    }
   }
 
   revalidatePath("/", "layout");

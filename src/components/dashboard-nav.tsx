@@ -9,11 +9,11 @@ import {
 } from "@/components/icons";
 
 const NAV_ITEMS = [
-  { href: "/dashboard",           label: "My Listings",     icon: IconBox           },
-  { href: "/dashboard/offers",    label: "Swap Offers",     icon: IconArrowLeftRight },
-  { href: "/dashboard/messages",  label: "Messages",        icon: IconMessageCircle },
-  { href: "/dashboard/wishlist",  label: "Wishlist",        icon: IconHeart         },
-  { href: "/dashboard/profile",   label: "Profile & Trust", icon: IconUser          },
+  { href: "/dashboard",          label: "My Listings",     icon: IconBox            },
+  { href: "/dashboard/offers",   label: "Swap Offers",     icon: IconArrowLeftRight },
+  { href: "/dashboard/messages", label: "Messages",        icon: IconMessageCircle  },
+  { href: "/dashboard/wishlist", label: "Wishlist",        icon: IconHeart          },
+  { href: "/dashboard/profile",  label: "Profile & Trust", icon: IconUser           },
 ];
 
 export function DashboardNav() {
@@ -33,7 +33,8 @@ export function DashboardNav() {
                 : "text-muted hover:bg-gray-100 hover:text-foreground"
             }`}
           >
-            <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={active ? 2.5 : 1.75} />
+            {/* Fixed: h-4.5 is not a valid Tailwind class — use h-4 w-4 */}
+            <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.5 : 1.75} />
             {label}
           </Link>
         );
@@ -44,7 +45,7 @@ export function DashboardNav() {
           type="submit"
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
         >
-          <IconLogOut className="h-4.5 w-4.5 shrink-0" strokeWidth={1.75} />
+          <IconLogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           Log Out
         </button>
       </form>

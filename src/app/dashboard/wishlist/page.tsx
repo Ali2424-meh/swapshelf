@@ -1,9 +1,16 @@
 import { createWishlistAlertAction } from "@/app/auth/actions";
+import { FormDropdown } from "@/components/form-dropdown";
 import { ListingCard } from "@/components/listing-card";
 import { getCategories, getWishlistData } from "@/lib/data";
 
 export default async function WishlistPage() {
   const [wishlist, categories] = await Promise.all([getWishlistData(), getCategories()]);
+  const categoryOptions = [
+    { value: "", label: "Any category" },
+    ...categories
+      .filter((category) => category.id)
+      .map(({ id, name, emoji }) => ({ value: id!, label: `${emoji} ${name}` })),
+  ];
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -19,16 +26,12 @@ export default async function WishlistPage() {
           placeholder="Add an alert, e.g. Dune, PS5 controller, Catan..."
           className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none"
         />
-        <select name="category_id" className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none">
-          <option value="">Any category</option>
-          {categories
-            .filter((category) => category.id)
-            .map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-        </select>
+        <FormDropdown
+          name="category_id"
+          defaultValue=""
+          options={categoryOptions}
+          className="relative flex min-w-[180px] items-center rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground transition focus-within:border-green focus-within:ring-2 focus-within:ring-green/20"
+        />
         <button className="rounded-xl bg-green px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-dark">Create alert</button>
       </form>
 

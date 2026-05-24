@@ -22,24 +22,20 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet, headers) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
+      // Fixed: setAll only receives cookiesToSet — no second "headers" param in @supabase/ssr v0.10
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
 
         supabaseResponse = NextResponse.next({ request });
 
-        cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
-        });
-
-        Object.entries(headers).forEach(([key, value]) => {
-          supabaseResponse.headers.set(key, value);
-        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          supabaseResponse.cookies.set(name, value, options),
+        );
       },
     },
   });
 
+  // IMPORTANT: call getUser() so the session token is refreshed on every request
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -49,6 +45,7 @@ export async function updateSession(request: NextRequest) {
   const isAdmin = matches(pathname, adminRoutes);
   const isAuthPage = matches(pathname, authRoutes);
 
+  // Not logged in → redirect to login, preserving destination
   if (!user && (isProtected || isAdmin)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
@@ -56,6 +53,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // Already logged in → don't show login/signup
   if (user && isAuthPage) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";

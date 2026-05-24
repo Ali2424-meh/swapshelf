@@ -1,5 +1,13 @@
 import { updateReportStatusAction } from "@/app/auth/actions";
+import { FormDropdown } from "@/components/form-dropdown";
 import { getAdminReports, getAdminStats } from "@/lib/data";
+
+const REPORT_STATUS_OPTIONS = [
+  { value: "open", label: "Open" },
+  { value: "reviewing", label: "Reviewing" },
+  { value: "resolved", label: "Resolved" },
+  { value: "dismissed", label: "Dismissed" },
+];
 
 export default async function AdminReportsPage() {
   const [reports, stats] = await Promise.all([getAdminReports(), getAdminStats()]);
@@ -16,7 +24,7 @@ export default async function AdminReportsPage() {
         <p className="mt-1 text-xs text-red-600">Resolve, dismiss, or keep reports under review.</p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
+      <div className="rounded-2xl bg-card shadow-sm ring-1 ring-border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-background">
@@ -41,12 +49,12 @@ export default async function AdminReportsPage() {
                 <td className="px-6 py-4">
                   <form action={updateReportStatusAction} className="flex items-center gap-2">
                     <input type="hidden" name="report_id" value={report.id} />
-                    <select name="status" defaultValue={report.status} className="rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground">
-                      <option value="open">Open</option>
-                      <option value="reviewing">Reviewing</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="dismissed">Dismissed</option>
-                    </select>
+                    <FormDropdown
+                      name="status"
+                      defaultValue={report.status}
+                      options={REPORT_STATUS_OPTIONS}
+                      className="relative flex min-w-[116px] items-center rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground transition focus-within:border-green focus-within:ring-1 focus-within:ring-green/20"
+                    />
                     <button className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark">
                       Save
                     </button>

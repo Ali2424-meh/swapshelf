@@ -1,5 +1,14 @@
 import { updateListingStatusAction } from "@/app/auth/actions";
+import { FormDropdown } from "@/components/form-dropdown";
 import { getAdminListings } from "@/lib/data";
+
+const LISTING_STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "pending", label: "Pending" },
+  { value: "flagged", label: "Flagged" },
+  { value: "swapped", label: "Swapped" },
+  { value: "archived", label: "Archived" },
+];
 
 export default async function AdminListingsPage() {
   const listings = await getAdminListings();
@@ -11,7 +20,7 @@ export default async function AdminListingsPage() {
         <p className="mt-0.5 text-sm text-muted">Moderate active, flagged, and archived listings</p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
+      <div className="rounded-2xl bg-card shadow-sm ring-1 ring-border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-background">
@@ -35,13 +44,12 @@ export default async function AdminListingsPage() {
                 <td className="px-6 py-4">
                   <form action={updateListingStatusAction} className="flex items-center gap-2">
                     <input type="hidden" name="listing_id" value={listing.id} />
-                    <select name="status" defaultValue={listing.status} className="rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground">
-                      <option value="active">Active</option>
-                      <option value="pending">Pending</option>
-                      <option value="flagged">Flagged</option>
-                      <option value="swapped">Swapped</option>
-                      <option value="archived">Archived</option>
-                    </select>
+                    <FormDropdown
+                      name="status"
+                      defaultValue={listing.status}
+                      options={LISTING_STATUS_OPTIONS}
+                      className="relative flex min-w-[112px] items-center rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground transition focus-within:border-green focus-within:ring-1 focus-within:ring-green/20"
+                    />
                     <button className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark">
                       Save
                     </button>

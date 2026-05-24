@@ -1,4 +1,5 @@
 import { updateUserStatusAction } from "@/app/auth/actions";
+import { FormDropdown } from "@/components/form-dropdown";
 import { getAdminUsers } from "@/lib/data";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -6,6 +7,12 @@ const STATUS_COLORS: Record<string, string> = {
   flagged: "bg-red-100 text-red-700",
   banned: "bg-stone-200 text-stone-700",
 };
+
+const USER_STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "flagged", label: "Flagged" },
+  { value: "banned", label: "Banned" },
+];
 
 export default async function AdminUsersPage() {
   const users = await getAdminUsers();
@@ -19,7 +26,7 @@ export default async function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
+      <div className="rounded-2xl bg-card shadow-sm ring-1 ring-border">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-background">
@@ -47,11 +54,12 @@ export default async function AdminUsersPage() {
                 <td className="px-6 py-4">
                   <form action={updateUserStatusAction} className="flex items-center gap-2">
                     <input type="hidden" name="user_id" value={user.id} />
-                    <select name="status" defaultValue={user.status} className="rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground">
-                      <option value="active">Active</option>
-                      <option value="flagged">Flagged</option>
-                      <option value="banned">Banned</option>
-                    </select>
+                    <FormDropdown
+                      name="status"
+                      defaultValue={user.status}
+                      options={USER_STATUS_OPTIONS}
+                      className="relative flex min-w-[104px] items-center rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground transition focus-within:border-green focus-within:ring-1 focus-within:ring-green/20"
+                    />
                     <button className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark">
                       Save
                     </button>
