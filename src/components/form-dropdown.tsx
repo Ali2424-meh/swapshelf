@@ -74,7 +74,7 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
         />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-[70] mt-2 min-w-full overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
+        <div className="absolute left-0 top-full z-[70] mt-2 min-w-full overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100 ease-out origin-top-left">
           {options.map((option) => {
             const active = String(selected.value) === String(option.value);
 
@@ -86,7 +86,7 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
                   setSelectedValue(String(option.value));
                   setOpen(false);
                 }}
-                className={`flex w-full items-center gap-2.5 whitespace-nowrap px-4 py-2.5 text-left text-sm transition hover:bg-gray-50 ${
+                className={`flex w-full items-center gap-2.5 whitespace-nowrap px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3 ${
                   active ? "font-semibold text-green" : "font-medium text-foreground"
                 }`}
               >

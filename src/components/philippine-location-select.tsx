@@ -6,8 +6,8 @@ import {
   getMunicipalitiesByProvince,
   getProvincesByRegion,
 } from "@aivangogh/ph-address";
-import { useMemo, useState } from "react";
-import { IconMapPin } from "@/components/icons";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { IconChevronDown, IconMapPin } from "@/components/icons";
 import type { PhilippineLocation } from "@/lib/location";
 
 type PhilippineLocationSelectProps = {
@@ -40,43 +40,102 @@ function SelectField({
   required?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
   const filteredOptions = query.trim()
     ? options.filter((option) => option.name.toLowerCase().includes(query.trim().toLowerCase()))
     : options;
 
+  const selectedOption = options.find((o) => o.code === value);
+
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   return (
-    <div>
+    <div className="relative" ref={ref}>
       <label htmlFor={id} className="block text-sm font-semibold text-foreground">
         {label}
         {required && <span className="font-normal text-orange"> *</span>}
       </label>
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => setQuery(event.currentTarget.value)}
-        disabled={disabled}
-        placeholder={`Search ${label.toLowerCase()}...`}
-        className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20 disabled:cursor-not-allowed disabled:opacity-60"
-      />
-      <select
+      <input type="hidden" name={name} value={value} />
+      <button
         id={id}
-        name={name}
-        value={value}
-        onChange={(event) => {
-          onChange(event.currentTarget.value);
-          setQuery("");
-        }}
+        type="button"
         disabled={disabled}
-        required={required}
-        className="mt-2 w-full appearance-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground shadow-sm focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20 disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={() => setOpen((c) => !c)}
+        className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm text-foreground shadow-sm transition focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <option value="">Select {label.toLowerCase()}...</option>
-        {filteredOptions.map((option) => (
-          <option key={option.code} value={option.code}>
-            {optionLabel(option.name, option.code)}
-          </option>
-        ))}
-      </select>
+        <span className="truncate">{selectedOption ? optionLabel(selectedOption.name, selectedOption.code) : `Select ${label.toLowerCase()}...`}</span>
+        <IconChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+0.5rem)] z-[70] w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg animate-in fade-in zoom-in-95 duration-100 ease-out origin-top">
+          <div className="border-b border-border p-2">
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              placeholder={`Search ${label.toLowerCase()}...`}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-1 focus:ring-green"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto py-1">
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                setQuery("");
+                setOpen(false);
+              }}
+              className={`flex w-full items-center px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3 ${
+                !value ? "font-semibold text-green" : "text-foreground font-medium"
+              }`}
+            >
+              None
+            </button>
+            {filteredOptions.map((option) => {
+              const active = value === option.code;
+              return (
+                <button
+                  key={option.code}
+                  type="button"
+                  onClick={() => {
+                    onChange(option.code);
+                    setQuery("");
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3 ${
+                    active ? "font-semibold text-green" : "text-foreground font-medium"
+                  }`}
+                >
+                  {optionLabel(option.name, option.code)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

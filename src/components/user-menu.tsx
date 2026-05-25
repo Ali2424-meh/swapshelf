@@ -82,7 +82,7 @@ export function UserMenu({ displayName, email, initials, avatarUrl, role, areaLa
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+          className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-card shadow-lg animate-in fade-in zoom-in-95 duration-100 ease-out origin-top-right"
         >
           <div className="border-b border-border px-4 py-3">
             <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ export function UserMenu({ displayName, email, initials, avatarUrl, role, areaLa
                 href={href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-gray-50"
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3"
               >
                 <Icon className="h-4 w-4 text-muted" strokeWidth={1.75} />
                 {label}
@@ -120,7 +120,7 @@ export function UserMenu({ displayName, email, initials, avatarUrl, role, areaLa
                 href="/admin"
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-gray-50"
+                className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3"
               >
                 <IconShield className="h-4 w-4 text-muted" strokeWidth={1.75} />
                 Admin Panel
@@ -133,7 +133,7 @@ export function UserMenu({ displayName, email, initials, avatarUrl, role, areaLa
               <button
                 type="submit"
                 role="menuitem"
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 transition-all duration-200 hover:bg-red-50 hover:pl-5 hover:pr-3"
               >
                 <IconLogOut className="h-4 w-4" strokeWidth={1.75} />
                 Log out
