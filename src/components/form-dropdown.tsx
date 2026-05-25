@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { IconChevronDown } from "@/components/icons";
+import { useClickOutside } from "@/lib/hooks";
 
 export type DropdownOption = {
   value: string | number;
@@ -24,28 +25,9 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
   );
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
   const selected = options.find((option) => String(option.value) === selectedValue) ?? options[0];
-
-  useEffect(() => {
-    function onPointerDown(event: PointerEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, []);
 
   if (!selected) {
     return null;
@@ -86,8 +68,8 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
                   setSelectedValue(String(option.value));
                   setOpen(false);
                 }}
-                className={`flex w-full items-center gap-2.5 whitespace-nowrap px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3 ${
-                  active ? "font-semibold text-green" : "font-medium text-foreground"
+                className={`flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-4 py-2.5 text-left text-sm hover:bg-green-light hover:text-green ${
+                  active ? "bg-green-light font-semibold text-green" : "font-medium text-foreground"
                 }`}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-green" : ""}`} />

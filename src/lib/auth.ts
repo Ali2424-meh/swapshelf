@@ -89,7 +89,7 @@ export async function requireUser() {
   }
 
   if (currentUser.profile.status === "banned") {
-    redirect("/login?error=Your account is unavailable.");
+    redirect("/banned");
   }
 
   return currentUser;

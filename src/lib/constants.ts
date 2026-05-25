@@ -1,12 +1,18 @@
 import type { ComponentType } from "react";
 import {
+  IconArrowLeftRight,
   IconBlocks,
   IconBookOpen,
+  IconBox,
   IconDisc,
   IconGamepad,
+  IconHeart,
   IconLaptop,
+  IconLayoutDashboard,
+  IconMessageCircle,
   IconPuzzle,
   IconScissors,
+  IconUser,
 } from "@/components/icons";
 
 type IconComponent = ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -135,3 +141,12 @@ export function iconForCategory(slug?: string): IconComponent {
   };
   return map[slug ?? ""] ?? IconBlocks;
 }
+
+export const DASHBOARD_NAV_ITEMS = [
+  { href: "/dashboard",          label: "Overview",        icon: IconLayoutDashboard },
+  { href: "/dashboard/listings", label: "My Listings",     icon: IconBox },
+  { href: "/dashboard/offers",   label: "Swap Offers",     icon: IconArrowLeftRight },
+  { href: "/dashboard/messages", label: "Messages",        icon: IconMessageCircle },
+  { href: "/dashboard/wishlist", label: "Wishlist",        icon: IconHeart },
+  { href: "/dashboard/profile",  label: "Profile & Trust", icon: IconUser },
+];

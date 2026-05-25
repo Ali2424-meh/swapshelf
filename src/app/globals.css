@@ -47,9 +47,11 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-/* Smooth transitions */
+/* Smooth transitions — broad but safe.
+   Transitions color, background, border, shadow, and opacity — but NOT padding,
+   margin, width, height, or layout props that cause jank. */
 *, *::before, *::after {
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-property: color, background-color, border-color, box-shadow, opacity;
   transition-duration: 150ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
@@ -13,6 +14,20 @@ const loginSchema = z.object({
   password: z.string().min(1),
   next: z.string().optional(),
 });
+
+const forgotPasswordSchema = z.object({
+  email: z.email().trim(),
+});
+
+const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8).max(72),
+    confirm_password: z.string().min(8).max(72),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    path: ["confirm_password"],
+    error: "Passwords do not match.",
+  });
 
 const signupSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -101,6 +116,16 @@ function authError(path: string, message: string): never {
 
 function authMessage(path: string, message: string): never {
   redirect(`${path}?message=${encodeURIComponent(message)}`);
+}
+
+async function originUrl() {
+  const requestHeaders = await headers();
+  return (
+    requestHeaders.get("origin") ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000"
+  );
 }
 
 function slugify(input: string) {
@@ -252,14 +277,19 @@ export async function loginAction(formData: FormData) {
   const requestedNext = nextPath(formData.get("next"), "/dashboard");
   let destination = requestedNext;
 
-  if (requestedNext === "/dashboard" && data.user) {
+  if (data.user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, status")
       .eq("id", data.user.id)
       .single();
 
-    if (profile?.role === "admin") {
+    if (profile?.status === "banned") {
+      revalidatePath("/", "layout");
+      redirect("/banned");
+    }
+
+    if (requestedNext === "/dashboard" && profile?.role === "admin") {
       destination = "/admin";
     }
   }
@@ -314,6 +344,63 @@ export async function signupAction(formData: FormData) {
   }
 
   authMessage("/login", "Check your email to confirm your account, then sign in.");
+}
+
+export async function forgotPasswordAction(formData: FormData) {
+  configuredOrRedirect("/forgot-password");
+
+  const parsed = forgotPasswordSchema.safeParse({
+    email: value(formData, "email"),
+  });
+
+  if (!parsed.success) {
+    authError("/forgot-password", "Enter the email address for your SwapShelf account.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${await originUrl()}/auth/confirm?type=recovery&next=/reset-password`,
+  });
+
+  if (error) {
+    authError("/forgot-password", error.message);
+  }
+
+  authMessage("/login", "Check your email for a password reset link.");
+}
+
+export async function updatePasswordAction(formData: FormData) {
+  configuredOrRedirect("/reset-password");
+
+  const parsed = resetPasswordSchema.safeParse({
+    password: value(formData, "password"),
+    confirm_password: value(formData, "confirm_password"),
+  });
+
+  if (!parsed.success) {
+    authError("/reset-password", "Use matching passwords with at least 8 characters.");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    authError("/forgot-password", "Your reset link expired. Request a new one.");
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+
+  if (error) {
+    authError("/reset-password", error.message);
+  }
+
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  authMessage("/login", "Password updated. Sign in with your new password.");
 }
 
 export async function logoutAction() {
@@ -769,7 +856,7 @@ export async function updateOfferStatusAction(formData: FormData) {
   const isReceiver = offer.receiver_id === currentUser.id;
   const canAcceptOrDecline = isReceiver && offer.status === "pending" && ["accepted", "declined"].includes(status.data);
   const canCancel = isSender && offer.status === "pending" && status.data === "cancelled";
-  const canComplete = offer.status === "accepted" && status.data === "completed";
+  const canComplete = isReceiver && offer.status === "accepted" && status.data === "completed";
 
   if (!canAcceptOrDecline && !canCancel && !canComplete) {
     redirect("/dashboard/offers?error=That offer cannot be updated this way.");
@@ -803,13 +890,35 @@ export async function updateOfferStatusAction(formData: FormData) {
 
     if (conversation) {
       acceptedConversationId = conversation.id;
-      await supabase.from("conversation_participants").upsert(
-        [
-          { conversation_id: conversation.id, user_id: offer.sender_id },
+
+      // Insert participants individually — batch upsert can silently fail
+      // if any single row triggers an RLS violation, causing both to fail.
+      await Promise.all([
+        supabase.from("conversation_participants").upsert(
           { conversation_id: conversation.id, user_id: offer.receiver_id },
-        ],
-        { ignoreDuplicates: true, onConflict: "conversation_id,user_id" },
-      );
+          { ignoreDuplicates: true, onConflict: "conversation_id,user_id" },
+        ),
+        supabase.from("conversation_participants").upsert(
+          { conversation_id: conversation.id, user_id: offer.sender_id },
+          { ignoreDuplicates: true, onConflict: "conversation_id,user_id" },
+        ),
+      ]);
+    }
+  }
+
+  // Auto-archive both listings when a swap is completed
+  if (status.data === "completed") {
+    const { data: completedOffer } = await supabase
+      .from("swap_offers")
+      .select("listing_id, offered_listing_id")
+      .eq("id", offer.id)
+      .single();
+
+    if (completedOffer) {
+      const listingIds = [completedOffer.listing_id, completedOffer.offered_listing_id].filter(Boolean);
+      if (listingIds.length) {
+        await supabase.from("listings").update({ status: "swapped" }).in("id", listingIds);
+      }
     }
   }
 

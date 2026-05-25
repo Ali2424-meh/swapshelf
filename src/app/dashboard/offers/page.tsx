@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { updateOfferStatusAction } from "@/app/auth/actions";
+import { Avatar } from "@/components/avatar";
 import { IconArrowLeftRight } from "@/components/icons";
 import { getSwapOffers } from "@/lib/data";
 
@@ -98,18 +99,13 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
     <article className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          {offer.otherPartyAvatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={offer.otherPartyAvatarUrl}
-              alt={offer.otherPartyName}
-              className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-border"
-            />
-          ) : (
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green text-sm font-bold text-white">
-              {offer.otherPartyInitials}
-            </span>
-          )}
+          <Avatar
+            src={offer.otherPartyAvatarUrl ?? null}
+            alt={offer.otherPartyName}
+            initials={offer.otherPartyInitials}
+            size="md"
+            className="shrink-0"
+          />
           <div>
             <p className="font-semibold text-foreground">{offer.listingTitle}</p>
             <p className="text-sm text-muted">
@@ -184,7 +180,7 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
             </button>
           </form>
         )}
-        {offer.status === "Accepted" && (
+        {offer.status === "Accepted" && offer.direction === "incoming" && (
           <>
             <Link
               href={offer.conversationId ? `/dashboard/messages/${offer.conversationId}` : "/dashboard/messages"}
@@ -200,6 +196,14 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
               </button>
             </form>
           </>
+        )}
+        {offer.status === "Accepted" && offer.direction === "outgoing" && (
+          <Link
+            href={offer.conversationId ? `/dashboard/messages/${offer.conversationId}` : "/dashboard/messages"}
+            className="rounded-lg bg-green px-4 py-2 text-sm font-semibold text-white hover:bg-green-dark"
+          >
+            Open chat
+          </Link>
         )}
       </div>
     </article>
