@@ -3,7 +3,7 @@ import { FormDropdown } from "@/components/form-dropdown";
 import { ListingCard } from "@/components/listing-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { IconSearch, IconMapPin } from "@/components/icons";
+import { IconMapPin, IconSearch } from "@/components/icons";
 import { RADIUS_OPTIONS } from "@/lib/constants";
 import { getCategories, getPublicListings } from "@/lib/data";
 
@@ -173,7 +173,9 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
 
         {!listings.length && (
           <div className="mt-6 flex flex-col items-center justify-center rounded-2xl bg-card px-6 py-20 text-center shadow-sm ring-1 ring-border">
-            <span className="text-5xl">🔎</span>
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-light">
+              <IconSearch className="h-8 w-8 text-green" strokeWidth={1.5} />
+            </span>
             <p className="mt-4 font-display text-xl font-semibold text-foreground">No listings found</p>
             <p className="mt-2 max-w-sm text-sm text-muted">
               Try a wider radius, a different category, or a simpler search term.

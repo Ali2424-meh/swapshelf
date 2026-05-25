@@ -2,6 +2,7 @@
 -- Run this in the Supabase SQL Editor after creating your project.
 
 create extension if not exists "pgcrypto";
+create extension if not exists "pg_trgm";
 
 do $$ begin
   create type public.profile_role as enum ('user', 'admin');
@@ -70,6 +71,7 @@ create table if not exists public.profiles (
   display_name text not null,
   initials text not null,
   avatar_url text,
+  avatar_path text,
   role public.profile_role not null default 'user',
   status public.profile_status not null default 'active',
   city text,
@@ -86,6 +88,7 @@ create table if not exists public.public_profiles (
   display_name text not null,
   initials text not null,
   avatar_url text,
+  avatar_path text,
   trust_score numeric(3,2) not null default 5.00 check (trust_score >= 0 and trust_score <= 5),
   completed_swaps integer not null default 0 check (completed_swaps >= 0),
   created_at timestamptz not null default now(),
@@ -103,6 +106,9 @@ create table if not exists public.categories (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists avatar_path text;
+alter table public.public_profiles add column if not exists avatar_path text;
 
 create table if not exists public.listings (
   id uuid primary key default gen_random_uuid(),
@@ -124,6 +130,12 @@ create table if not exists public.listings (
 create index if not exists listings_owner_idx on public.listings(owner_id);
 create index if not exists listings_category_idx on public.listings(category_id);
 create index if not exists listings_status_created_idx on public.listings(status, created_at desc);
+create index if not exists listings_active_created_idx on public.listings(created_at desc) where status = 'active';
+create index if not exists listings_search_trgm_idx
+on public.listings using gin (
+  (coalesce(title, '') || ' ' || coalesce(description, '') || ' ' || coalesce(wants, '')) gin_trgm_ops
+)
+where status = 'active';
 
 create table if not exists public.listing_images (
   id uuid primary key default gen_random_uuid(),
@@ -145,6 +157,8 @@ create table if not exists public.saved_listings (
   primary key (user_id, listing_id)
 );
 
+create index if not exists saved_listings_listing_idx on public.saved_listings(listing_id, created_at desc);
+
 create table if not exists public.wishlist_alerts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -155,6 +169,8 @@ create table if not exists public.wishlist_alerts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create index if not exists wishlist_alerts_user_idx on public.wishlist_alerts(user_id, active, created_at desc);
 
 create table if not exists public.swap_offers (
   id uuid primary key default gen_random_uuid(),
@@ -171,6 +187,8 @@ create table if not exists public.swap_offers (
 
 create index if not exists swap_offers_sender_idx on public.swap_offers(sender_id, created_at desc);
 create index if not exists swap_offers_receiver_idx on public.swap_offers(receiver_id, created_at desc);
+create index if not exists swap_offers_listing_status_idx on public.swap_offers(listing_id, status, created_at desc);
+create index if not exists swap_offers_offered_listing_idx on public.swap_offers(offered_listing_id) where offered_listing_id is not null;
 
 create table if not exists public.conversations (
   id uuid primary key default gen_random_uuid(),
@@ -185,6 +203,8 @@ create table if not exists public.conversation_participants (
   created_at timestamptz not null default now(),
   primary key (conversation_id, user_id)
 );
+
+create index if not exists conversation_participants_user_idx on public.conversation_participants(user_id, conversation_id);
 
 create table if not exists public.messages (
   id uuid primary key default gen_random_uuid(),
@@ -236,6 +256,8 @@ create table if not exists public.reports (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create index if not exists reports_status_created_idx on public.reports(status, created_at desc);
 
 create index if not exists reports_status_idx on public.reports(status, created_at desc);
 
@@ -310,11 +332,12 @@ begin
     initials = excluded.initials,
     updated_at = now();
 
-  insert into public.public_profiles (id, display_name, initials, avatar_url)
-  values (new.id, display_name, public.make_initials(display_name), null)
+  insert into public.public_profiles (id, display_name, initials, avatar_url, avatar_path)
+  values (new.id, display_name, public.make_initials(display_name), null, null)
   on conflict (id) do update set
     display_name = excluded.display_name,
     initials = excluded.initials,
+    avatar_path = excluded.avatar_path,
     updated_at = now();
 
   return new;
@@ -333,12 +356,13 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.public_profiles (id, display_name, initials, avatar_url, updated_at)
-  values (new.id, new.display_name, new.initials, new.avatar_url, now())
+  insert into public.public_profiles (id, display_name, initials, avatar_url, avatar_path, updated_at)
+  values (new.id, new.display_name, new.initials, new.avatar_url, new.avatar_path, now())
   on conflict (id) do update set
     display_name = excluded.display_name,
     initials = excluded.initials,
     avatar_url = excluded.avatar_url,
+    avatar_path = excluded.avatar_path,
     updated_at = now();
 
   return new;
@@ -445,6 +469,9 @@ begin
   end loop;
 end $$;
 
+-- Drop first because Postgres cannot change OUT parameter return types with create or replace.
+drop function if exists public.search_listings(text, text, numeric, numeric, numeric, text);
+
 create or replace function public.search_listings(
   p_search text default null,
   p_category_slug text default null,
@@ -470,6 +497,7 @@ returns table (
   owner_id uuid,
   owner_name text,
   owner_initials text,
+  owner_avatar_url text,
   owner_trust_score numeric,
   image_url text
 )
@@ -491,6 +519,7 @@ as $$
       c.emoji as category_emoji,
       pp.display_name as owner_name,
       pp.initials as owner_initials,
+      pp.avatar_url as owner_avatar_url,
       pp.trust_score as owner_trust_score,
       ri.public_url as image_url,
       case
@@ -541,6 +570,7 @@ as $$
     lr.owner_id,
     lr.owner_name,
     lr.owner_initials,
+    lr.owner_avatar_url,
     lr.owner_trust_score,
     lr.image_url
   from listing_rows lr
@@ -739,6 +769,14 @@ with check (
   and public.current_user_status() = 'active'
   and receiver_id = (select owner_id from public.listings where id = listing_id)
   and exists (select 1 from public.listings where id = listing_id and status = 'active')
+  and offered_listing_id is not null
+  and exists (
+    select 1 from public.listings own_listing
+    where own_listing.id = offered_listing_id
+      and own_listing.owner_id = auth.uid()
+      and own_listing.status = 'active'
+      and own_listing.id <> listing_id
+  )
 );
 
 drop policy if exists "Offer participants can update offers" on public.swap_offers;
@@ -895,11 +933,30 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'avatars',
+  'avatars',
+  true,
+  5242880,
+  array['image/png', 'image/jpeg', 'image/webp']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 drop policy if exists "Listing photos are publicly readable" on storage.objects;
 create policy "Listing photos are publicly readable"
 on storage.objects for select
 to anon, authenticated
 using (bucket_id = 'listing-photos');
+
+drop policy if exists "Avatars are publicly readable" on storage.objects;
+create policy "Avatars are publicly readable"
+on storage.objects for select
+to anon, authenticated
+using (bucket_id = 'avatars');
 
 drop policy if exists "Users upload own listing photos" on storage.objects;
 create policy "Users upload own listing photos"
@@ -907,6 +964,15 @@ on storage.objects for insert
 to authenticated
 with check (
   bucket_id = 'listing-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "Users upload own avatars" on storage.objects;
+create policy "Users upload own avatars"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'avatars'
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
@@ -923,11 +989,33 @@ with check (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+drop policy if exists "Users update own avatars" on storage.objects;
+create policy "Users update own avatars"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'avatars'
+  and (storage.foldername(name))[1] = auth.uid()::text
+)
+with check (
+  bucket_id = 'avatars'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
 drop policy if exists "Users delete own listing photos" on storage.objects;
 create policy "Users delete own listing photos"
 on storage.objects for delete
 to authenticated
 using (
   bucket_id = 'listing-photos'
+  and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin())
+);
+
+drop policy if exists "Users delete own avatars" on storage.objects;
+create policy "Users delete own avatars"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'avatars'
   and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin())
 );

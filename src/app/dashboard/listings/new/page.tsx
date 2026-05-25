@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createListingAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
-import { IconUpload } from "@/components/icons";
+import { PhotoUpload } from "@/components/photo-upload";
 import { getCategories } from "@/lib/data";
 
 type NewListingPageProps = {
@@ -134,18 +134,12 @@ export default async function NewListingPage({ searchParams }: NewListingPagePro
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-foreground">Photos</label>
-          <label
-            htmlFor="photos"
-            className="mt-2 flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border bg-background px-6 py-10 text-center transition hover:border-green hover:bg-green-light"
-          >
-            <IconUpload className="h-8 w-8 text-muted" strokeWidth={1.5} />
-            <div>
-              <p className="text-sm font-medium text-foreground">Click to upload photos</p>
-              <p className="mt-0.5 text-xs text-muted">PNG, JPG, WEBP, or GIF up to 10 MB each</p>
-            </div>
-            <input id="photos" name="photos" type="file" accept="image/*" multiple className="sr-only" />
+          <label className="block text-sm font-semibold text-foreground">
+            Photos <span className="font-normal text-muted">(up to 6)</span>
           </label>
+          <div className="mt-2">
+            <PhotoUpload />
+          </div>
         </div>
 
         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">

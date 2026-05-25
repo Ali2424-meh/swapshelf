@@ -1,9 +1,26 @@
 import Link from "next/link";
-import { IconPlus } from "@/components/icons";
+import { archiveListingAction } from "@/app/auth/actions";
+import { IconArchive, IconArrowLeftRight, IconEye, IconPackageOpen, IconPencil, IconPlus } from "@/components/icons";
 import { getDashboardListings } from "@/lib/data";
 
-export default async function MyListingsPage() {
-  const listings = await getDashboardListings();
+type MyListingsPageProps = {
+  searchParams?: Promise<{ error?: string; message?: string }>;
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  active: "bg-green-100 text-green-800",
+  pending: "bg-amber-100 text-amber-800",
+  flagged: "bg-red-100 text-red-700",
+  swapped: "bg-blue-100 text-blue-800",
+  archived: "bg-gray-100 text-gray-600",
+};
+
+function statusLabel(status: string) {
+  return status.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export default async function MyListingsPage({ searchParams }: MyListingsPageProps) {
+  const [listings, params] = await Promise.all([getDashboardListings(), searchParams]);
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -21,15 +38,27 @@ export default async function MyListingsPage() {
         </Link>
       </div>
 
+      {params?.error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>
+      )}
+      {params?.message && (
+        <p className="rounded-xl border border-green/20 bg-green-light px-4 py-3 text-sm text-green">{params.message}</p>
+      )}
+
       {listings.length ? (
         <div className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-background">
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Item</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Category</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Condition</th>
+                <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted sm:table-cell">
+                  Category
+                </th>
+                <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted lg:table-cell">
+                  Condition
+                </th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Status</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -47,16 +76,59 @@ export default async function MyListingsPage() {
                       )}
                       <div>
                         <p className="font-medium text-foreground">{listing.title}</p>
-                        <p className="text-xs text-muted">Listed {new Date(listing.createdAt).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted">
+                          Listed{" "}
+                          {new Date(listing.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-muted">{listing.category}</td>
-                  <td className="px-5 py-4 text-muted">{listing.condition}</td>
+                  <td className="hidden px-5 py-4 text-muted sm:table-cell">{listing.category}</td>
+                  <td className="hidden px-5 py-4 text-muted lg:table-cell">{listing.condition}</td>
                   <td className="px-5 py-4">
-                    <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                      {listing.status}
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        STATUS_STYLES[listing.status] ?? STATUS_STYLES.active
+                      }`}
+                    >
+                      {statusLabel(listing.status)}
                     </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link
+                        href={`/listings/${listing.id}`}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground"
+                      >
+                        <IconEye className="h-3 w-3" strokeWidth={2} />
+                        View
+                      </Link>
+                      <Link
+                        href={`/dashboard/listings/${listing.id}/edit`}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-green hover:underline"
+                      >
+                        <IconPencil className="h-3 w-3" strokeWidth={2} />
+                        Edit
+                      </Link>
+                      <Link
+                        href="/dashboard/offers"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-green hover:underline"
+                      >
+                        <IconArrowLeftRight className="h-3 w-3" strokeWidth={2} />
+                        Offers{listing.pendingOfferCount ? ` (${listing.pendingOfferCount})` : ""}
+                      </Link>
+                      <form action={archiveListingAction}>
+                        <input type="hidden" name="listing_id" value={listing.id} />
+                        <button className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground">
+                          <IconArchive className="h-3 w-3" strokeWidth={2} />
+                          {listing.status === "archived" ? "Reactivate" : "Archive"}
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -65,10 +137,12 @@ export default async function MyListingsPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl bg-card px-6 py-20 text-center shadow-sm ring-1 ring-border">
-          <span className="text-6xl">📦</span>
-          <h2 className="mt-5 font-display text-xl font-semibold text-foreground">No active listings</h2>
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-light">
+            <IconPackageOpen className="h-8 w-8 text-green" strokeWidth={1.5} />
+          </span>
+          <h2 className="mt-5 font-display text-xl font-semibold text-foreground">No listings yet</h2>
           <p className="mt-2 max-w-sm text-sm text-muted">
-            You haven&apos;t posted any items for swap yet. Share something you no longer need.
+            Share something you no longer need and let someone nearby offer a swap for it.
           </p>
           <Link
             href="/dashboard/listings/new"

@@ -1,5 +1,6 @@
 import { createWishlistAlertAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
+import { IconHeart } from "@/components/icons";
 import { ListingCard } from "@/components/listing-card";
 import { getCategories, getWishlistData } from "@/lib/data";
 
@@ -56,7 +57,9 @@ export default async function WishlistPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl bg-card px-6 py-20 text-center shadow-sm ring-1 ring-border">
-          <span className="text-6xl">💖</span>
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-light">
+            <IconHeart className="h-8 w-8 text-green" strokeWidth={1.5} />
+          </span>
           <h2 className="mt-5 font-display text-xl font-semibold text-foreground">Wishlist is empty</h2>
           <p className="mt-2 max-w-sm text-sm text-muted">
             Save items you want and get notified when similar listings appear nearby.

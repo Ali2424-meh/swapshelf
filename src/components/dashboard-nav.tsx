@@ -22,7 +22,7 @@ export function DashboardNav() {
   return (
     <nav className="mt-5 space-y-0.5">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href;
+        const active = pathname === href || (href === "/dashboard" && pathname.startsWith("/dashboard/listings"));
         return (
           <Link
             key={href}

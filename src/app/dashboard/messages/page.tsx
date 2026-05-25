@@ -1,4 +1,5 @@
 import { sendMessageAction } from "@/app/auth/actions";
+import { IconMessageCircle } from "@/components/icons";
 import { getConversations } from "@/lib/data";
 
 export default async function MessagesPage() {
@@ -16,9 +17,18 @@ export default async function MessagesPage() {
           {conversations.map((conversation) => (
             <article key={conversation.id} className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border">
               <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green text-sm font-bold text-white">
-                  {conversation.otherPartyInitials}
-                </span>
+                {conversation.otherPartyAvatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={conversation.otherPartyAvatarUrl}
+                    alt={conversation.otherPartyName}
+                    className="h-10 w-10 rounded-full object-cover ring-1 ring-border"
+                  />
+                ) : (
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green text-sm font-bold text-white">
+                    {conversation.otherPartyInitials}
+                  </span>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-foreground">{conversation.otherPartyName}</p>
@@ -46,7 +56,9 @@ export default async function MessagesPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl bg-card px-6 py-20 text-center shadow-sm ring-1 ring-border">
-          <span className="text-6xl">💬</span>
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-green-light">
+            <IconMessageCircle className="h-8 w-8 text-green" strokeWidth={1.5} />
+          </span>
           <h2 className="mt-5 font-display text-xl font-semibold text-foreground">No conversations yet</h2>
           <p className="mt-2 max-w-sm text-sm text-muted">Chat with other swappers after you send or receive an offer.</p>
         </div>

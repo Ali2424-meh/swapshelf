@@ -42,6 +42,8 @@ const listingSchema = z.object({
   longitude: optionalLongitude,
 });
 
+const editableListingStatusSchema = z.enum(["active", "archived"]);
+
 const profileSchema = z.object({
   display_name: z.string().trim().min(2).max(80),
   city: z.string().trim().max(120).optional(),
@@ -55,6 +57,8 @@ const uuidSchema = z.uuid();
 const maxListingPhotos = 6;
 const maxListingPhotoSize = 10 * 1024 * 1024;
 const allowedListingPhotoTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const maxAvatarSize = 5 * 1024 * 1024;
+const allowedAvatarTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 function configuredOrRedirect(path = "/login") {
   if (!hasSupabaseEnv()) {
@@ -101,8 +105,68 @@ function conditionLabelToValue(raw: string) {
   return raw;
 }
 
+function photoFiles(formData: FormData) {
+  return formData.getAll("photos").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+}
+
+async function uploadListingPhoto({
+  supabase,
+  ownerId,
+  listingId,
+  title,
+  photo,
+  sortOrder,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  ownerId: string;
+  listingId: string;
+  title: string;
+  photo: File;
+  sortOrder: number;
+}) {
+  const ext = photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${ownerId}/${listingId}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("listing-photos").upload(path, photo, {
+    contentType: photo.type || "image/jpeg",
+    upsert: false,
+  });
+
+  if (uploadError) {
+    return { error: uploadError.message || "Could not upload one of the photos." };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("listing-photos").getPublicUrl(path);
+
+  const { error: imageError } = await supabase.from("listing_images").insert({
+    listing_id: listingId,
+    owner_id: ownerId,
+    storage_path: path,
+    public_url: publicUrl,
+    alt_text: title,
+    sort_order: sortOrder,
+  });
+
+  if (imageError) {
+    await supabase.storage.from("listing-photos").remove([path]);
+    return { error: imageError.message || "Could not save one of the uploaded photos." };
+  }
+
+  return { error: null };
+}
+
 function listingPhotoError(message: string): never {
   redirect(`/dashboard/listings/new?error=${encodeURIComponent(message)}`);
+}
+
+function listingEditError(listingId: string, message: string): never {
+  redirect(`/dashboard/listings/${listingId}/edit?error=${encodeURIComponent(message)}`);
+}
+
+function profileError(message: string): never {
+  redirect(`/dashboard/profile?error=${encodeURIComponent(message)}`);
 }
 
 export async function loginAction(formData: FormData) {
@@ -232,10 +296,12 @@ export async function createListingAction(formData: FormData) {
     redirect("/dashboard/listings/new?error=Could not publish this listing.");
   }
 
-  const photos = formData
-    .getAll("photos")
-    .filter((entry): entry is File => entry instanceof File && entry.size > 0)
-    .slice(0, maxListingPhotos);
+  const photos = photoFiles(formData);
+
+  if (photos.length > maxListingPhotos) {
+    await supabase.from("listings").delete().eq("id", listing.id);
+    listingPhotoError(`You can upload up to ${maxListingPhotos} photos.`);
+  }
 
   for (const photo of photos) {
     if (photo.size > maxListingPhotoSize) {
@@ -250,38 +316,18 @@ export async function createListingAction(formData: FormData) {
   }
 
   for (const [index, photo] of photos.entries()) {
-    const ext = photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `${currentUser.id}/${listing.id}/${crypto.randomUUID()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("listing-photos")
-      .upload(path, photo, {
-        contentType: photo.type || "image/jpeg",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      await supabase.from("listings").delete().eq("id", listing.id);
-      listingPhotoError(uploadError.message || "Could not upload one of the photos.");
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("listing-photos").getPublicUrl(path);
-
-    const { error: imageError } = await supabase.from("listing_images").insert({
-      listing_id: listing.id,
-      owner_id: currentUser.id,
-      storage_path: path,
-      public_url: publicUrl,
-      alt_text: parsed.data.title,
-      sort_order: index,
+    const { error: photoError } = await uploadListingPhoto({
+      supabase,
+      ownerId: currentUser.id,
+      listingId: listing.id,
+      title: parsed.data.title,
+      photo,
+      sortOrder: index,
     });
 
-    if (imageError) {
-      await supabase.storage.from("listing-photos").remove([path]);
+    if (photoError) {
       await supabase.from("listings").delete().eq("id", listing.id);
-      listingPhotoError(imageError.message || "Could not save one of the uploaded photos.");
+      listingPhotoError(photoError);
     }
   }
 
@@ -320,21 +366,50 @@ export async function createOfferAction(formData: FormData) {
   configuredOrRedirect("/login");
   const currentUser = await requireUser();
   const listingId = uuidSchema.safeParse(value(formData, "listing_id"));
+  const offeredListingId = uuidSchema.safeParse(value(formData, "offered_listing_id"));
+  const fallbackNext = listingId.success ? `/listings/${listingId.data}` : "/browse";
+  const next = nextPath(formData.get("next"), fallbackNext);
 
-  if (!listingId.success) {
-    redirect("/browse");
+  if (!listingId.success || !offeredListingId.success) {
+    redirect(`${next}?error=${encodeURIComponent("Choose one of your active listings to offer.")}`);
   }
 
   const supabase = await createClient();
-  const { data: listing } = await supabase
-    .from("listings")
-    .select("id, owner_id, title")
-    .eq("id", listingId.data)
-    .eq("status", "active")
-    .single();
+  const [{ data: listing }, { data: offeredListing }] = await Promise.all([
+    supabase
+      .from("listings")
+      .select("id, owner_id, title")
+      .eq("id", listingId.data)
+      .eq("status", "active")
+      .single(),
+    supabase
+      .from("listings")
+      .select("id, owner_id, title")
+      .eq("id", offeredListingId.data)
+      .eq("owner_id", currentUser.id)
+      .eq("status", "active")
+      .single(),
+  ]);
 
   if (!listing || listing.owner_id === currentUser.id) {
-    redirect("/browse?error=You cannot send an offer on that listing.");
+    redirect(`${next}?error=${encodeURIComponent("You cannot send an offer on that listing.")}`);
+  }
+
+  if (!offeredListing || offeredListing.id === listing.id) {
+    redirect(`${next}?error=${encodeURIComponent("Choose a different active listing of your own to offer.")}`);
+  }
+
+  const { data: existingOffer } = await supabase
+    .from("swap_offers")
+    .select("id")
+    .eq("listing_id", listing.id)
+    .eq("sender_id", currentUser.id)
+    .eq("offered_listing_id", offeredListing.id)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (existingOffer) {
+    redirect(`${next}?error=${encodeURIComponent("You already have a pending offer using that item.")}`);
   }
 
   const { error } = await supabase
@@ -343,11 +418,165 @@ export async function createOfferAction(formData: FormData) {
       listing_id: listing.id,
       sender_id: currentUser.id,
       receiver_id: listing.owner_id,
+      offered_listing_id: offeredListing.id,
       message: optionalValue(formData, "message") ?? "I am interested in swapping for this item.",
     });
 
   revalidatePath("/", "layout");
-  redirect(error ? "/browse?error=Could not send that offer." : "/dashboard/offers");
+  redirect(error ? `${next}?error=${encodeURIComponent("Could not send that offer.")}` : "/dashboard/offers");
+}
+
+export async function updateListingAction(formData: FormData) {
+  configuredOrRedirect("/dashboard");
+  const currentUser = await requireUser();
+  const listingId = uuidSchema.safeParse(value(formData, "listing_id"));
+
+  if (!listingId.success) {
+    redirect("/dashboard?error=Listing not found.");
+  }
+
+  const parsed = listingSchema
+    .extend({
+      status: editableListingStatusSchema,
+    })
+    .safeParse({
+      title: value(formData, "title"),
+      category_id: value(formData, "category_id"),
+      condition: conditionLabelToValue(value(formData, "condition")),
+      description: optionalValue(formData, "description"),
+      wants: optionalValue(formData, "wants"),
+      city: optionalValue(formData, "city"),
+      postal_code: optionalValue(formData, "postal_code"),
+      latitude: value(formData, "latitude"),
+      longitude: value(formData, "longitude"),
+      status: value(formData, "status") || "active",
+    });
+
+  if (!parsed.success) {
+    listingEditError(listingId.data, "Please check the listing fields and try again.");
+  }
+
+  const supabase = await createClient();
+  const { data: existing, error: existingError } = await supabase
+    .from("listings")
+    .select("id, owner_id, listing_images(id, storage_path, sort_order)")
+    .eq("id", listingId.data)
+    .eq("owner_id", currentUser.id)
+    .single();
+
+  if (existingError || !existing) {
+    redirect("/dashboard?error=Listing not found.");
+  }
+
+  const existingImages = Array.isArray(existing.listing_images) ? existing.listing_images : [];
+  const deleteIds = new Set(
+    formData
+      .getAll("delete_image_ids")
+      .filter((entry): entry is string => typeof entry === "string" && uuidSchema.safeParse(entry).success),
+  );
+  const imagesToDelete = existingImages.filter((image) => deleteIds.has(image.id));
+  const remainingImages = existingImages.filter((image) => !deleteIds.has(image.id));
+  const photos = photoFiles(formData);
+
+  if (remainingImages.length + photos.length > maxListingPhotos) {
+    listingEditError(listingId.data, `Listings can have up to ${maxListingPhotos} photos.`);
+  }
+
+  for (const photo of photos) {
+    if (photo.size > maxListingPhotoSize) {
+      listingEditError(listingId.data, "Each photo must be 10 MB or smaller.");
+    }
+
+    if (!allowedListingPhotoTypes.has(photo.type)) {
+      listingEditError(listingId.data, "Photos must be PNG, JPG, WEBP, or GIF files.");
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("listings")
+    .update({
+      category_id: parsed.data.category_id,
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
+      condition: parsed.data.condition,
+      wants: parsed.data.wants ?? null,
+      city: parsed.data.city ?? currentUser.profile.city,
+      postal_code: parsed.data.postal_code ?? currentUser.profile.postal_code,
+      latitude: parsed.data.latitude ?? currentUser.profile.latitude,
+      longitude: parsed.data.longitude ?? currentUser.profile.longitude,
+      status: parsed.data.status,
+    })
+    .eq("id", listingId.data)
+    .eq("owner_id", currentUser.id);
+
+  if (updateError) {
+    listingEditError(listingId.data, updateError.message || "Could not update this listing.");
+  }
+
+  if (imagesToDelete.length) {
+    const deletePaths = imagesToDelete.map((image) => image.storage_path).filter(Boolean);
+    await supabase.from("listing_images").delete().eq("owner_id", currentUser.id).in(
+      "id",
+      imagesToDelete.map((image) => image.id),
+    );
+
+    if (deletePaths.length) {
+      await supabase.storage.from("listing-photos").remove(deletePaths);
+    }
+  }
+
+  const nextSortOrder =
+    remainingImages.reduce((highest, image) => Math.max(highest, image.sort_order ?? 0), -1) + 1;
+
+  for (const [index, photo] of photos.entries()) {
+    const { error: photoError } = await uploadListingPhoto({
+      supabase,
+      ownerId: currentUser.id,
+      listingId: listingId.data,
+      title: parsed.data.title,
+      photo,
+      sortOrder: nextSortOrder + index,
+    });
+
+    if (photoError) {
+      listingEditError(listingId.data, photoError);
+    }
+  }
+
+  revalidatePath("/", "layout");
+  redirect(`/dashboard/listings/${listingId.data}/edit?message=Listing updated.`);
+}
+
+export async function archiveListingAction(formData: FormData) {
+  configuredOrRedirect("/dashboard");
+  const currentUser = await requireUser();
+  const listingId = uuidSchema.safeParse(value(formData, "listing_id"));
+
+  if (!listingId.success) {
+    redirect("/dashboard?error=Listing not found.");
+  }
+
+  const supabase = await createClient();
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("id, status")
+    .eq("id", listingId.data)
+    .eq("owner_id", currentUser.id)
+    .single();
+
+  if (!listing) {
+    redirect("/dashboard?error=Listing not found.");
+  }
+
+  const nextStatus = listing.status === "archived" ? "active" : "archived";
+  const { error } = await supabase
+    .from("listings")
+    .update({ status: nextStatus })
+    .eq("id", listing.id)
+    .eq("owner_id", currentUser.id);
+
+  revalidatePath("/", "layout");
+  redirect(error ? "/dashboard?error=Could not update that listing." : "/dashboard");
 }
 
 export async function createReportAction(formData: FormData) {
@@ -390,7 +619,7 @@ export async function updateOfferStatusAction(formData: FormData) {
   const supabase = await createClient();
   const { data: offer } = await supabase
     .from("swap_offers")
-    .select("id, sender_id, receiver_id, listing_id")
+    .select("id, sender_id, receiver_id, listing_id, status")
     .eq("id", offerId.data)
     .single();
 
@@ -398,7 +627,24 @@ export async function updateOfferStatusAction(formData: FormData) {
     redirect("/dashboard/offers?error=You cannot update that offer.");
   }
 
-  await supabase.from("swap_offers").update({ status: status.data }).eq("id", offer.id);
+  const isSender = offer.sender_id === currentUser.id;
+  const isReceiver = offer.receiver_id === currentUser.id;
+  const canAcceptOrDecline = isReceiver && offer.status === "pending" && ["accepted", "declined"].includes(status.data);
+  const canCancel = isSender && offer.status === "pending" && status.data === "cancelled";
+  const canComplete = offer.status === "accepted" && status.data === "completed";
+
+  if (!canAcceptOrDecline && !canCancel && !canComplete) {
+    redirect("/dashboard/offers?error=That offer cannot be updated this way.");
+  }
+
+  const { error: updateError } = await supabase
+    .from("swap_offers")
+    .update({ status: status.data })
+    .eq("id", offer.id);
+
+  if (updateError) {
+    redirect("/dashboard/offers?error=Could not update that offer.");
+  }
 
   if (status.data === "accepted") {
     const { data: existingConversation } = await supabase
@@ -503,6 +749,58 @@ export async function updateProfileAction(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect("/dashboard/profile?message=Profile updated.");
+}
+
+export async function updateAvatarAction(formData: FormData) {
+  configuredOrRedirect("/dashboard/profile");
+  const currentUser = await requireUser();
+  const avatar = formData.get("avatar");
+
+  if (!(avatar instanceof File) || avatar.size === 0) {
+    profileError("Choose an avatar image to upload.");
+  }
+
+  if (avatar.size > maxAvatarSize) {
+    profileError("Profile picture must be 5 MB or smaller.");
+  }
+
+  if (!allowedAvatarTypes.has(avatar.type)) {
+    profileError("Profile picture must be a PNG, JPG, or WEBP image.");
+  }
+
+  const supabase = await createClient();
+  const ext = avatar.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${currentUser.id}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, avatar, {
+    contentType: avatar.type || "image/jpeg",
+    upsert: false,
+  });
+
+  if (uploadError) {
+    profileError(uploadError.message || "Could not upload your profile picture.");
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ avatar_url: publicUrl, avatar_path: path })
+    .eq("id", currentUser.id);
+
+  if (error) {
+    await supabase.storage.from("avatars").remove([path]);
+    profileError(error.message || "Could not save your profile picture.");
+  }
+
+  if (currentUser.profile.avatar_path) {
+    await supabase.storage.from("avatars").remove([currentUser.profile.avatar_path]);
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard/profile?message=Profile picture updated.");
 }
 
 export async function createCategoryAction(formData: FormData) {

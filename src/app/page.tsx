@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ListingCard } from "@/components/listing-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { IconSearch } from "@/components/icons";
+import { IconPackageOpen, IconSearch } from "@/components/icons";
 import { RADIUS_OPTIONS } from "@/lib/constants";
 import { RadiusSelect } from "@/components/radius-select";
 import { getCategories, getPublicListings, getPublicStats } from "@/lib/data";
@@ -131,7 +131,9 @@ export default async function HomePage() {
           </div>
           {!listings.length && (
             <div className="mt-6 rounded-2xl bg-card px-6 py-14 text-center shadow-sm ring-1 ring-border">
-              <span className="text-5xl">📭</span>
+              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-light">
+                <IconPackageOpen className="h-8 w-8 text-green" strokeWidth={1.5} />
+              </span>
               <p className="mt-4 font-display text-lg font-semibold text-foreground">No listings yet</p>
               <p className="mt-2 text-sm text-muted">Be the first to list something in your area!</p>
             </div>

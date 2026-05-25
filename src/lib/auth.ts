@@ -13,6 +13,7 @@ export type CurrentUser = {
     display_name: string;
     initials: string;
     avatar_url: string | null;
+    avatar_path: string | null;
     role: ProfileRole;
     status: ProfileStatus;
     city: string | null;
@@ -41,7 +42,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select(
-      "display_name, initials, avatar_url, role, status, city, postal_code, latitude, longitude, search_radius_km",
+      "display_name, initials, avatar_url, avatar_path, role, status, city, postal_code, latitude, longitude, search_radius_km",
     )
     .eq("id", user.id)
     .single();

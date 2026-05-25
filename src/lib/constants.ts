@@ -50,11 +50,13 @@ export type Listing = {
   ownerId?: string;
   ownerName: string;
   ownerInitials: string;
+  ownerAvatarUrl?: string | null;
   rating: number;
   imageUrl?: string | null;
   imageGradient: string;
   condition: "Like New" | "Good" | "Fair";
   isSaved?: boolean;
+  isOwn?: boolean;
 };
 
 export const FALLBACK_LISTINGS: Listing[] = [
@@ -70,6 +72,8 @@ export const FALLBACK_LISTINGS: Listing[] = [
     rating: 4.8,
     imageGradient: "from-slate-400 to-slate-600",
     condition: "Like New",
+    isSaved: false,
+    isOwn: false,
   },
   {
     id: "demo-2",
@@ -83,6 +87,8 @@ export const FALLBACK_LISTINGS: Listing[] = [
     rating: 4.9,
     imageGradient: "from-amber-300 to-orange-400",
     condition: "Good",
+    isSaved: false,
+    isOwn: false,
   },
   {
     id: "demo-3",
@@ -96,9 +102,20 @@ export const FALLBACK_LISTINGS: Listing[] = [
     rating: 4.6,
     imageGradient: "from-emerald-400 to-teal-500",
     condition: "Like New",
+    isSaved: false,
+    isOwn: false,
   },
 ];
 
-export function iconForCategory(slug?: string) {
-  return FALLBACK_CATEGORIES.find((category) => category.slug === slug)?.icon ?? IconBookOpen;
+export function iconForCategory(slug?: string): IconComponent {
+  const map: Record<string, IconComponent> = {
+    books: IconBookOpen,
+    "video-games": IconGamepad,
+    "board-games": IconPuzzle,
+    toys: IconBlocks,
+    "music-dvds": IconDisc,
+    tech: IconLaptop,
+    "craft-hobby": IconScissors,
+  };
+  return map[slug ?? ""] ?? IconBlocks;
 }
