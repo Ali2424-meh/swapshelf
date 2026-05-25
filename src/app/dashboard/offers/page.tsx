@@ -131,6 +131,30 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
           &ldquo;{offer.message}&rdquo;
         </p>
       )}
+      {(offer.offerDetails || offer.meetupNote || offer.images.length > 0) && (
+        <div className="mt-4 rounded-xl bg-background p-3">
+          {offer.offerDetails && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Offer details</p>
+              <p className="mt-1 whitespace-pre-line text-sm text-foreground">{offer.offerDetails}</p>
+            </div>
+          )}
+          {offer.meetupNote && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Meetup note</p>
+              <p className="mt-1 whitespace-pre-line text-sm text-foreground">{offer.meetupNote}</p>
+            </div>
+          )}
+          {offer.images.length > 0 && (
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              {offer.images.map((image) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={image.id} src={image.publicUrl} alt={image.altText ?? "Offer photo"} className="aspect-square rounded-lg object-cover" />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {offer.direction === "incoming" && offer.status === "Pending" && (
@@ -162,7 +186,10 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
         )}
         {offer.status === "Accepted" && (
           <>
-            <Link href="/dashboard/messages" className="rounded-lg bg-green px-4 py-2 text-sm font-semibold text-white hover:bg-green-dark">
+            <Link
+              href={offer.conversationId ? `/dashboard/messages/${offer.conversationId}` : "/dashboard/messages"}
+              className="rounded-lg bg-green px-4 py-2 text-sm font-semibold text-white hover:bg-green-dark"
+            >
               Open chat
             </Link>
             <form action={updateOfferStatusAction}>

@@ -1,6 +1,7 @@
 import { DashboardNav } from "@/components/dashboard-nav";
 import { SiteHeader } from "@/components/site-header";
-import { IconStar } from "@/components/icons";
+import { AppShell } from "@/components/app-shell";
+import { IconMapPin } from "@/components/icons";
 import { requireUser } from "@/lib/auth";
 import { getDashboardCounts } from "@/lib/data";
 
@@ -14,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-background">
       {/* SiteHeader now reads session itself — no rightAction needed */}
       <SiteHeader />
-      <div className="mx-auto flex max-w-6xl gap-6 px-4 py-8 sm:px-6">
+      <AppShell className="flex gap-6 py-8">
         {/* Sidebar */}
         <aside className="hidden w-60 shrink-0 lg:block">
           <div className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border">
@@ -32,9 +33,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 </span>
               )}
               <h2 className="mt-3 font-display text-lg font-semibold text-foreground">{currentUser.profile.display_name}</h2>
-              <p className="mt-1 flex items-center gap-1 text-sm text-muted">
-                <IconStar className="h-3.5 w-3.5 fill-amber-400 text-amber-400" filled />
-                Secure member
+              <p className="mt-1 flex max-w-full items-center gap-1 text-sm text-muted">
+                <IconMapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                <span className="truncate">{currentUser.profile.area_label ?? "Area not set"}</span>
               </p>
               <div className="mt-3 flex gap-4 text-center">
                 <div>
@@ -52,7 +53,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </aside>
         <div className="min-w-0 flex-1">{children}</div>
-      </div>
+      </AppShell>
     </div>
   );
 }

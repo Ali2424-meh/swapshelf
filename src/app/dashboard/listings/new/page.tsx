@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { createListingAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
+import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 import { PhotoUpload } from "@/components/photo-upload";
+import { requireUser } from "@/lib/auth";
 import { getCategories } from "@/lib/data";
 
 type NewListingPageProps = {
@@ -11,7 +13,7 @@ type NewListingPageProps = {
 };
 
 export default async function NewListingPage({ searchParams }: NewListingPageProps) {
-  const [categories, params] = await Promise.all([getCategories(), searchParams]);
+  const [categories, params, currentUser] = await Promise.all([getCategories(), searchParams, requireUser()]);
   const dropdownClass =
     "relative mt-2 flex w-full items-center rounded-xl border border-border bg-background px-4 py-3 text-foreground transition focus-within:border-green focus-within:ring-2 focus-within:ring-green/20";
   const categoryOptions = [
@@ -106,29 +108,22 @@ export default async function NewListingPage({ searchParams }: NewListingPagePro
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="city" className="block text-sm font-semibold text-foreground">
-              Area <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="city"
-              name="city"
-              type="text"
-              placeholder="City or neighborhood"
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
-            />
-          </div>
-          <div>
-            <label htmlFor="postal_code" className="block text-sm font-semibold text-foreground">
-              Postal code <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="postal_code"
-              name="postal_code"
-              type="text"
-              placeholder="Postal code"
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
+        <div>
+          <label className="block text-sm font-semibold text-foreground">
+            Swap area <span className="font-normal text-muted">(defaults to your profile)</span>
+          </label>
+          <div className="mt-2">
+            <PhilippineLocationSelect
+              defaultValue={{
+                regionCode: currentUser.profile.region_code,
+                regionName: currentUser.profile.region_name,
+                provinceCode: currentUser.profile.province_code,
+                provinceName: currentUser.profile.province_name,
+                cityCode: currentUser.profile.city_code,
+                cityName: currentUser.profile.city_name,
+                barangayCode: currentUser.profile.barangay_code,
+                barangayName: currentUser.profile.barangay_name,
+              }}
             />
           </div>
         </div>
@@ -144,7 +139,7 @@ export default async function NewListingPage({ searchParams }: NewListingPagePro
 
         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
           <Link
-            href="/dashboard"
+            href="/dashboard/listings"
             className="flex items-center justify-center rounded-xl border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-gray-50"
           >
             Cancel

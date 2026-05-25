@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { archiveListingAction, updateListingAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
 import { IconArchive, IconEye } from "@/components/icons";
-import { LocationPicker } from "@/components/location-picker";
+import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 import { PhotoUpload } from "@/components/photo-upload";
 import { getCategories, getEditableListing } from "@/lib/data";
 
@@ -130,37 +130,10 @@ export default async function EditListingPage({ params, searchParams }: EditList
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="city" className="block text-sm font-semibold text-foreground">
-              Area <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="city"
-              name="city"
-              type="text"
-              defaultValue={listing.city ?? ""}
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
-            />
-          </div>
-          <div>
-            <label htmlFor="postal_code" className="block text-sm font-semibold text-foreground">
-              Postal code <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="postal_code"
-              name="postal_code"
-              type="text"
-              defaultValue={listing.postalCode ?? ""}
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
-            />
-          </div>
-        </div>
-
         <div>
-          <label className="block text-sm font-semibold text-foreground">Approximate location</label>
+          <label className="block text-sm font-semibold text-foreground">Swap area</label>
           <div className="mt-2">
-            <LocationPicker defaultLat={listing.latitude} defaultLng={listing.longitude} />
+            <PhilippineLocationSelect defaultValue={listing.location} />
           </div>
         </div>
 
@@ -215,7 +188,7 @@ export default async function EditListingPage({ params, searchParams }: EditList
 
         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
           <Link
-            href="/dashboard"
+            href="/dashboard/listings"
             className="flex items-center justify-center rounded-xl border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-gray-50"
           >
             Back to listings

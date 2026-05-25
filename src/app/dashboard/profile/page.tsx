@@ -2,7 +2,7 @@ import Link from "next/link";
 import { updateProfileAction } from "@/app/auth/actions";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { IconArrowLeftRight, IconCheck, IconShield, IconStar } from "@/components/icons";
-import { LocationPicker } from "@/components/location-picker";
+import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 import { getProfileData } from "@/lib/data";
 
 type ProfilePageProps = {
@@ -22,7 +22,7 @@ function getTrustTier(score: number) {
 
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const [profile, params] = await Promise.all([getProfileData(), searchParams]);
-  const tier = getTrustTier(profile.trustScore);
+  const tier = profile.reviewCount > 0 ? getTrustTier(profile.trustScore) : TRUST_TIERS[0];
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -44,10 +44,14 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           <div className="flex-1">
             <h2 className="font-display text-xl font-semibold text-foreground">{profile.displayName}</h2>
             <p className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted">
-              <span className="flex items-center gap-1">
-                <IconStar className="h-3.5 w-3.5 fill-amber-400 text-amber-400" filled />
-                {profile.trustScore.toFixed(1)} trust score
-              </span>
+              {profile.reviewCount > 0 ? (
+                <span className="flex items-center gap-1">
+                  <IconStar className="h-3.5 w-3.5 fill-amber-400 text-amber-400" filled />
+                  {profile.trustScore.toFixed(1)} from {profile.reviewCount} reviews
+                </span>
+              ) : (
+                <span>No ratings yet</span>
+              )}
               <span className="flex items-center gap-1">
                 <IconArrowLeftRight className="h-3.5 w-3.5" strokeWidth={1.75} />
                 {profile.completedSwaps} completed swaps
@@ -82,31 +86,8 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             />
           </div>
           <div>
-            <label htmlFor="city" className="block text-sm font-semibold text-foreground">
-              Area <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="city"
-              name="city"
-              defaultValue={profile.city ?? ""}
-              placeholder="City or neighbourhood"
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
-            />
-          </div>
-          <div>
-            <label htmlFor="postal_code" className="block text-sm font-semibold text-foreground">
-              Postal code <span className="font-normal text-muted">(optional)</span>
-            </label>
-            <input
-              id="postal_code"
-              name="postal_code"
-              defaultValue={profile.postalCode ?? ""}
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
-            />
-          </div>
-          <div>
             <label htmlFor="search_radius_km" className="block text-sm font-semibold text-foreground">
-              Default search radius (km)
+              Legacy search radius (km)
             </label>
             <input
               id="search_radius_km"
@@ -121,9 +102,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         </div>
 
         <div className="mt-5">
-          <label className="block text-sm font-semibold text-foreground">Your approximate location</label>
+          <label className="block text-sm font-semibold text-foreground">Your swapping area</label>
           <div className="mt-2">
-            <LocationPicker defaultLat={profile.latitude} defaultLng={profile.longitude} />
+            <PhilippineLocationSelect defaultValue={profile.location} requiredCity />
           </div>
         </div>
 
@@ -179,8 +160,8 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       <div className="rounded-2xl bg-green-light p-6">
         <h3 className="font-display text-base font-semibold text-green">How trust score works</h3>
         <p className="mt-2 text-sm text-green/80">
-          Your score is the average rating from completed swaps. Start at 5.0 and maintain it by being a reliable,
-          honest swapper. Verified accounts and more completed swaps increase your community standing.
+          Your public rating appears after you receive real reviews from completed swaps. Until then, your profile
+          is shown as a new member.
         </p>
         <Link href="/how-it-works" className="mt-3 inline-block text-sm font-semibold text-green underline underline-offset-2">
           Learn more

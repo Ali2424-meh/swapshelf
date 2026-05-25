@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppShell } from "./app-shell";
 import { Logo } from "./logo";
 
 const FOOTER_LINKS = [
@@ -31,7 +32,7 @@ const FOOTER_LINKS = [
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-border bg-card">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <AppShell className="py-12">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4">
             <Logo />
@@ -60,7 +61,7 @@ export function SiteFooter() {
           <p className="text-xs text-muted">© 2026 SwapShelf. All rights reserved.</p>
           <p className="text-xs text-muted">Built for communities, not corporations.</p>
         </div>
-      </div>
+      </AppShell>
     </footer>
   );
 }

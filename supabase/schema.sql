@@ -1019,3 +1019,435 @@ using (
   bucket_id = 'avatars'
   and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin())
 );
+
+-- V1 polish additions: Philippine area hierarchy, real review counts, offer photos, and chat metadata.
+alter table public.profiles add column if not exists review_count integer not null default 0 check (review_count >= 0);
+alter table public.public_profiles add column if not exists review_count integer not null default 0 check (review_count >= 0);
+
+alter table public.profiles add column if not exists region_code text;
+alter table public.profiles add column if not exists region_name text;
+alter table public.profiles add column if not exists province_code text;
+alter table public.profiles add column if not exists province_name text;
+alter table public.profiles add column if not exists city_code text;
+alter table public.profiles add column if not exists city_name text;
+alter table public.profiles add column if not exists barangay_code text;
+alter table public.profiles add column if not exists barangay_name text;
+alter table public.profiles add column if not exists location_label text;
+
+alter table public.listings add column if not exists region_code text;
+alter table public.listings add column if not exists region_name text;
+alter table public.listings add column if not exists province_code text;
+alter table public.listings add column if not exists province_name text;
+alter table public.listings add column if not exists city_code text;
+alter table public.listings add column if not exists city_name text;
+alter table public.listings add column if not exists barangay_code text;
+alter table public.listings add column if not exists barangay_name text;
+alter table public.listings add column if not exists location_label text;
+
+alter table public.swap_offers add column if not exists offer_details text;
+alter table public.swap_offers add column if not exists meetup_note text;
+alter table public.conversations add column if not exists last_message_at timestamptz;
+alter table public.conversation_participants add column if not exists last_read_at timestamptz;
+
+create index if not exists profiles_area_idx on public.profiles(region_code, province_code, city_code, barangay_code);
+create index if not exists listings_area_active_idx on public.listings(region_code, province_code, city_code, barangay_code, created_at desc)
+where status = 'active';
+create index if not exists conversations_last_message_idx on public.conversations(last_message_at desc nulls last);
+create index if not exists conversation_participants_unread_idx on public.conversation_participants(user_id, last_read_at);
+
+create table if not exists public.swap_offer_images (
+  id uuid primary key default gen_random_uuid(),
+  offer_id uuid not null references public.swap_offers(id) on delete cascade,
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  storage_path text not null unique,
+  public_url text not null,
+  alt_text text,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists swap_offer_images_offer_idx on public.swap_offer_images(offer_id, sort_order);
+alter table public.swap_offer_images enable row level security;
+
+create or replace function public.join_location_label(
+  p_barangay text,
+  p_city text,
+  p_province text,
+  p_region text
+)
+returns text
+language sql
+immutable
+as $$
+  select nullif(array_to_string(array_remove(array[p_barangay, p_city, p_province, p_region], null), ', '), '');
+$$;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  display_name text;
+  profile_location_label text;
+begin
+  display_name := coalesce(nullif(new.raw_user_meta_data ->> 'display_name', ''), split_part(new.email, '@', 1), 'New swapper');
+  profile_location_label := public.join_location_label(
+    nullif(new.raw_user_meta_data ->> 'barangay_name', ''),
+    nullif(new.raw_user_meta_data ->> 'city_name', ''),
+    nullif(new.raw_user_meta_data ->> 'province_name', ''),
+    nullif(new.raw_user_meta_data ->> 'region_name', '')
+  );
+
+  insert into public.profiles (
+    id,
+    email,
+    display_name,
+    initials,
+    city,
+    postal_code,
+    region_code,
+    region_name,
+    province_code,
+    province_name,
+    city_code,
+    city_name,
+    barangay_code,
+    barangay_name,
+    location_label
+  )
+  values (
+    new.id,
+    new.email,
+    display_name,
+    public.make_initials(display_name),
+    nullif(new.raw_user_meta_data ->> 'city_name', ''),
+    nullif(new.raw_user_meta_data ->> 'postal_code', ''),
+    nullif(new.raw_user_meta_data ->> 'region_code', ''),
+    nullif(new.raw_user_meta_data ->> 'region_name', ''),
+    nullif(new.raw_user_meta_data ->> 'province_code', ''),
+    nullif(new.raw_user_meta_data ->> 'province_name', ''),
+    nullif(new.raw_user_meta_data ->> 'city_code', ''),
+    nullif(new.raw_user_meta_data ->> 'city_name', ''),
+    nullif(new.raw_user_meta_data ->> 'barangay_code', ''),
+    nullif(new.raw_user_meta_data ->> 'barangay_name', ''),
+    profile_location_label
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    display_name = excluded.display_name,
+    initials = excluded.initials,
+    city = coalesce(excluded.city, public.profiles.city),
+    region_code = coalesce(excluded.region_code, public.profiles.region_code),
+    region_name = coalesce(excluded.region_name, public.profiles.region_name),
+    province_code = coalesce(excluded.province_code, public.profiles.province_code),
+    province_name = coalesce(excluded.province_name, public.profiles.province_name),
+    city_code = coalesce(excluded.city_code, public.profiles.city_code),
+    city_name = coalesce(excluded.city_name, public.profiles.city_name),
+    barangay_code = coalesce(excluded.barangay_code, public.profiles.barangay_code),
+    barangay_name = coalesce(excluded.barangay_name, public.profiles.barangay_name),
+    location_label = coalesce(excluded.location_label, public.profiles.location_label),
+    updated_at = now();
+
+  insert into public.public_profiles (id, display_name, initials, avatar_url, avatar_path, review_count)
+  values (new.id, display_name, public.make_initials(display_name), null, null, 0)
+  on conflict (id) do update set
+    display_name = excluded.display_name,
+    initials = excluded.initials,
+    updated_at = now();
+
+  return new;
+end;
+$$;
+
+create or replace function public.sync_public_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.public_profiles (id, display_name, initials, avatar_url, avatar_path, review_count, updated_at)
+  values (new.id, new.display_name, new.initials, new.avatar_url, new.avatar_path, coalesce(new.review_count, 0), now())
+  on conflict (id) do update set
+    display_name = excluded.display_name,
+    initials = excluded.initials,
+    avatar_url = excluded.avatar_url,
+    avatar_path = excluded.avatar_path,
+    review_count = excluded.review_count,
+    updated_at = now();
+
+  return new;
+end;
+$$;
+
+create or replace function public.recalculate_public_profile_stats(profile_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  reviews integer;
+  score numeric(3,2);
+  swaps integer;
+begin
+  select count(*)::integer, coalesce(round(avg(sr.rating)::numeric, 2), 5.00)
+    into reviews, score
+  from public.swap_reviews sr
+  where sr.reviewee_id = profile_id;
+
+  select count(*)::integer
+    into swaps
+  from public.swap_offers so
+  where so.status = 'completed'
+    and (so.sender_id = profile_id or so.receiver_id = profile_id);
+
+  update public.public_profiles pp
+  set completed_swaps = swaps,
+      trust_score = score,
+      review_count = reviews,
+      updated_at = now()
+  where pp.id = profile_id;
+
+  update public.profiles p
+  set review_count = reviews,
+      updated_at = now()
+  where p.id = profile_id;
+end;
+$$;
+
+create or replace function public.touch_conversation_last_message()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.conversations
+  set last_message_at = new.created_at,
+      updated_at = now()
+  where id = new.conversation_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists touch_conversation_last_message_on_message on public.messages;
+create trigger touch_conversation_last_message_on_message
+  after insert on public.messages
+  for each row execute function public.touch_conversation_last_message();
+
+-- Replace the old distance-first RPC with area-first search.
+drop function if exists public.search_listings(text, text, numeric, numeric, numeric, text);
+drop function if exists public.search_listings(text, text, text, text, text, text, text, text);
+
+create or replace function public.search_listings(
+  p_search text default null,
+  p_category_slug text default null,
+  p_area_scope text default 'all',
+  p_region_code text default null,
+  p_province_code text default null,
+  p_city_code text default null,
+  p_barangay_code text default null,
+  p_sort text default 'area'
+)
+returns table (
+  id uuid,
+  title text,
+  description text,
+  wants text,
+  condition text,
+  status text,
+  city text,
+  postal_code text,
+  region_code text,
+  region_name text,
+  province_code text,
+  province_name text,
+  city_code text,
+  city_name text,
+  barangay_code text,
+  barangay_name text,
+  location_label text,
+  area_rank integer,
+  distance_km numeric,
+  created_at timestamptz,
+  category_name text,
+  category_slug text,
+  category_emoji text,
+  owner_id uuid,
+  owner_name text,
+  owner_initials text,
+  owner_avatar_url text,
+  owner_trust_score numeric,
+  owner_review_count integer,
+  image_url text
+)
+language sql
+stable
+as $$
+  with ranked_images as (
+    select distinct on (li.listing_id)
+      li.listing_id,
+      li.public_url
+    from public.listing_images li
+    order by li.listing_id, li.sort_order asc, li.created_at asc
+  ),
+  listing_rows as (
+    select
+      l.*,
+      c.name as category_name,
+      c.slug as category_slug,
+      c.emoji as category_emoji,
+      pp.display_name as owner_name,
+      pp.initials as owner_initials,
+      pp.avatar_url as owner_avatar_url,
+      pp.trust_score as owner_trust_score,
+      pp.review_count as owner_review_count,
+      ri.public_url as image_url,
+      case
+        when p_barangay_code is not null and l.barangay_code = p_barangay_code then 0
+        when p_city_code is not null and l.city_code = p_city_code then 1
+        when p_province_code is not null and l.province_code = p_province_code then 2
+        when p_region_code is not null and l.region_code = p_region_code then 3
+        else 4
+      end as area_rank_value
+    from public.listings l
+    join public.categories c on c.id = l.category_id
+    join public.public_profiles pp on pp.id = l.owner_id
+    left join ranked_images ri on ri.listing_id = l.id
+    where l.status = 'active'
+      and c.active = true
+      and (p_category_slug is null or c.slug = p_category_slug)
+      and (
+        p_search is null
+        or l.title ilike '%' || p_search || '%'
+        or coalesce(l.description, '') ilike '%' || p_search || '%'
+        or coalesce(l.wants, '') ilike '%' || p_search || '%'
+      )
+      and (
+        p_area_scope = 'all'
+        or (p_area_scope = 'barangay' and p_barangay_code is not null and l.barangay_code = p_barangay_code)
+        or (p_area_scope = 'city' and p_city_code is not null and l.city_code = p_city_code)
+        or (p_area_scope = 'province' and p_province_code is not null and l.province_code = p_province_code)
+      )
+  )
+  select
+    lr.id,
+    lr.title,
+    lr.description,
+    lr.wants,
+    lr.condition::text,
+    lr.status::text,
+    lr.city,
+    lr.postal_code,
+    lr.region_code,
+    lr.region_name,
+    lr.province_code,
+    lr.province_name,
+    lr.city_code,
+    lr.city_name,
+    lr.barangay_code,
+    lr.barangay_name,
+    coalesce(lr.location_label, public.join_location_label(lr.barangay_name, lr.city_name, lr.province_name, lr.region_name)),
+    lr.area_rank_value,
+    null::numeric as distance_km,
+    lr.created_at,
+    lr.category_name,
+    lr.category_slug,
+    lr.category_emoji,
+    lr.owner_id,
+    lr.owner_name,
+    lr.owner_initials,
+    lr.owner_avatar_url,
+    lr.owner_trust_score,
+    lr.owner_review_count,
+    lr.image_url
+  from listing_rows lr
+  order by
+    case when p_sort = 'area' then lr.area_rank_value end asc,
+    case when p_sort = 'highest-rated' then lr.owner_trust_score end desc nulls last,
+    lr.created_at desc;
+$$;
+
+drop policy if exists "Offer participants can read offer images" on public.swap_offer_images;
+create policy "Offer participants can read offer images"
+on public.swap_offer_images for select
+to authenticated
+using (
+  public.is_admin()
+  or exists (
+    select 1
+    from public.swap_offers so
+    where so.id = offer_id
+      and (so.sender_id = auth.uid() or so.receiver_id = auth.uid())
+  )
+);
+
+drop policy if exists "Users manage own offer images" on public.swap_offer_images;
+create policy "Users manage own offer images"
+on public.swap_offer_images for all
+to authenticated
+using (owner_id = auth.uid() or public.is_admin())
+with check (
+  public.is_admin()
+  or (
+    owner_id = auth.uid()
+    and exists (
+      select 1 from public.swap_offers so
+      where so.id = offer_id
+        and so.sender_id = auth.uid()
+    )
+  )
+);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'offer-photos',
+  'offer-photos',
+  true,
+  10485760,
+  array['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Offer photos are readable by authenticated users" on storage.objects;
+create policy "Offer photos are readable by authenticated users"
+on storage.objects for select
+to authenticated
+using (bucket_id = 'offer-photos');
+
+drop policy if exists "Users upload own offer photos" on storage.objects;
+create policy "Users upload own offer photos"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'offer-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "Users update own offer photos" on storage.objects;
+create policy "Users update own offer photos"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'offer-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+)
+with check (
+  bucket_id = 'offer-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "Users delete own offer photos" on storage.objects;
+create policy "Users delete own offer photos"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'offer-photos'
+  and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin())
+);

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createOfferAction, createReportAction, toggleSavedListingAction } from "@/app/auth/actions";
+import { AppShell } from "@/components/app-shell";
 import { FormDropdown } from "@/components/form-dropdown";
 import { IconArrowLeftRight, IconHeart, IconMapPin, IconPackageOpen, IconShield, IconStar } from "@/components/icons";
+import { PhotoUpload } from "@/components/photo-upload";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getCurrentUser } from "@/lib/auth";
@@ -37,7 +39,8 @@ export default async function ListingDetailPage({ params, searchParams }: Listin
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main className="py-8">
+        <AppShell>
         <Link href="/browse" className="text-sm font-semibold text-green hover:text-green-dark">
           Back to browse
         </Link>
@@ -87,7 +90,7 @@ export default async function ListingDetailPage({ params, searchParams }: Listin
               <h1 className="mt-4 font-display text-3xl font-semibold text-foreground">{listing.title}</h1>
               <p className="mt-2 flex items-center gap-1.5 text-sm text-muted">
                 <IconMapPin className="h-4 w-4" />
-                {listing.distanceKm != null ? `${listing.distanceKm.toFixed(1)} km away` : listing.city ?? "Nearby"}
+                {listing.areaLabel ?? listing.city ?? "Area not set"}
               </p>
 
               {listing.description && (
@@ -123,10 +126,14 @@ export default async function ListingDetailPage({ params, searchParams }: Listin
                 )}
                 <div>
                   <p className="font-semibold text-foreground">{listing.ownerName}</p>
-                  <p className="flex items-center gap-1 text-sm text-muted">
-                    <IconStar className="h-3.5 w-3.5 fill-amber-400 text-amber-400" filled />
-                    {listing.rating.toFixed(1)} trust score
-                  </p>
+                  {listing.reviewCount > 0 && listing.rating != null ? (
+                    <p className="flex items-center gap-1 text-sm text-muted">
+                      <IconStar className="h-3.5 w-3.5 fill-amber-400 text-amber-400" filled />
+                      {listing.rating.toFixed(1)} from {listing.reviewCount} reviews
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted">No ratings yet</p>
+                  )}
                 </div>
               </div>
               <p className="mt-4 flex items-center gap-2 rounded-xl bg-background px-3 py-2 text-xs text-muted">
@@ -179,9 +186,23 @@ export default async function ListingDetailPage({ params, searchParams }: Listin
                     <textarea
                       name="message"
                       rows={3}
-                      placeholder="Add a friendly note..."
+                      required
+                      placeholder="Write the main offer message..."
                       className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
                     />
+                    <textarea
+                      name="offer_details"
+                      rows={3}
+                      placeholder="Describe the item you are offering, inclusions, condition, or trade terms..."
+                      className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
+                    />
+                    <textarea
+                      name="meetup_note"
+                      rows={2}
+                      placeholder="Optional meetup note, preferred area, or availability"
+                      className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
+                    />
+                    <PhotoUpload maxFiles={4} name="offer_photos" />
                     <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-dark">
                       <IconArrowLeftRight className="h-4 w-4" />
                       Send offer
@@ -214,6 +235,7 @@ export default async function ListingDetailPage({ params, searchParams }: Listin
             )}
           </aside>
         </div>
+        </AppShell>
       </main>
       <SiteFooter />
     </>

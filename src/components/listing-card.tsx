@@ -20,7 +20,7 @@ export function ListingCard({ listing, returnTo = "/browse" }: { listing: Listin
           <img src={listing.imageUrl} alt={listing.title} className="h-44 w-full object-cover" />
         ) : (
           <div className={`flex h-44 items-center justify-center bg-gradient-to-br ${listing.imageGradient}`}>
-            <span className="select-none text-4xl opacity-60">{listing.categoryEmoji ?? "📦"}</span>
+            <IconMapPin className="h-12 w-12 text-white/70" strokeWidth={1.25} />
           </div>
         )}
 
@@ -64,7 +64,7 @@ export function ListingCard({ listing, returnTo = "/browse" }: { listing: Listin
 
         <p className="mt-1 flex items-center gap-1 text-sm text-muted">
           <IconMapPin className="h-3.5 w-3.5 shrink-0" />
-          {listing.distanceKm != null ? `${listing.distanceKm.toFixed(1)} km away` : "Nearby"}
+          {listing.areaLabel ?? (listing.distanceKm != null ? `${listing.distanceKm.toFixed(1)} km away` : "Area not set")}
         </p>
 
         <div className="mt-3 flex items-center justify-between">
@@ -83,10 +83,14 @@ export function ListingCard({ listing, returnTo = "/browse" }: { listing: Listin
             )}
             <div>
               <p className="text-sm font-medium text-foreground">{listing.ownerName}</p>
-              <p className="flex items-center gap-0.5 text-xs text-muted">
-                <IconStar className="h-3 w-3 fill-amber-400 text-amber-400" filled />
-                {listing.rating.toFixed(1)}
-              </p>
+              {listing.reviewCount > 0 && listing.rating != null ? (
+                <p className="flex items-center gap-0.5 text-xs text-muted">
+                  <IconStar className="h-3 w-3 fill-amber-400 text-amber-400" filled />
+                  {listing.rating.toFixed(1)} ({listing.reviewCount})
+                </p>
+              ) : (
+                <p className="text-xs text-muted">No ratings yet</p>
+              )}
             </div>
           </div>
 

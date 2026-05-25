@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signupAction } from "@/app/auth/actions";
 import { Logo } from "@/components/logo";
+import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 
 type SignUpPageProps = {
   searchParams?: Promise<{
@@ -71,16 +72,12 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
                 />
               </div>
               <div>
-                <label htmlFor="location" className="block text-sm font-semibold text-foreground">
-                  Your area <span className="font-normal text-muted">(optional)</span>
+                <label className="block text-sm font-semibold text-foreground">
+                  Your swapping area <span className="font-normal text-orange">*</span>
                 </label>
-                <input
-                  id="location"
-                  name="location"
-                  type="text"
-                  placeholder="City or postal code"
-                  className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
-                />
+                <div className="mt-2">
+                  <PhilippineLocationSelect requiredCity />
+                </div>
               </div>
               <label className="flex cursor-pointer items-start gap-3">
                 <input type="checkbox" required className="mt-0.5 h-4 w-4 rounded border-border accent-green" />

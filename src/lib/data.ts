@@ -7,6 +7,7 @@ import {
   type CategoryDisplay,
   type Listing,
 } from "@/lib/constants";
+import { cityProvinceLabel, locationLabel, type PhilippineLocation } from "@/lib/location";
 import { hasSupabaseEnv } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,6 +27,7 @@ export type DashboardListing = {
   imageUrl: string | null;
   createdAt: string;
   pendingOfferCount: number;
+  areaLabel: string | null;
 };
 
 export type OfferSummary = {
@@ -33,8 +35,13 @@ export type OfferSummary = {
   direction: "incoming" | "outgoing";
   status: string;
   message: string | null;
+  offerDetails: string | null;
+  meetupNote: string | null;
   listingTitle: string;
+  listingUnavailable: boolean;
   offeredListingTitle: string | null;
+  conversationId: string | null;
+  images: ListingImage[];
   otherPartyName: string;
   otherPartyInitials: string;
   otherPartyAvatarUrl: string | null;
@@ -53,6 +60,7 @@ export type ListingDetail = Listing & {
   status: string;
   city: string | null;
   postalCode: string | null;
+  location: PhilippineLocation;
   createdAt: string;
   images: ListingImage[];
 };
@@ -67,6 +75,7 @@ export type EditableListing = {
   status: "active" | "pending" | "flagged" | "swapped" | "archived";
   city: string | null;
   postalCode: string | null;
+  location: PhilippineLocation;
   latitude: number | null;
   longitude: number | null;
   images: ListingImage[];
@@ -85,8 +94,35 @@ export type ConversationSummary = {
   otherPartyName: string;
   otherPartyInitials: string;
   otherPartyAvatarUrl: string | null;
+  listingTitle: string;
+  offeredListingTitle: string | null;
+  offerStatus: string;
   latestMessage: string;
   latestAt: string | null;
+  unreadCount: number;
+};
+
+export type ConversationMessage = {
+  id: string;
+  body: string;
+  senderId: string;
+  senderName: string;
+  senderInitials: string;
+  senderAvatarUrl: string | null;
+  createdAt: string;
+  isOwn: boolean;
+};
+
+export type ConversationThreadData = {
+  id: string;
+  otherPartyName: string;
+  otherPartyInitials: string;
+  otherPartyAvatarUrl: string | null;
+  listingTitle: string;
+  offeredListingTitle: string | null;
+  offerStatus: string;
+  canSend: boolean;
+  messages: ConversationMessage[];
 };
 
 export type WishlistData = {
@@ -111,7 +147,10 @@ export type ProfileData = {
   longitude: number | null;
   searchRadiusKm: number;
   trustScore: number;
+  reviewCount: number;
   completedSwaps: number;
+  location: PhilippineLocation;
+  areaLabel: string | null;
   createdAt: string | null;
 };
 
@@ -185,6 +224,8 @@ function mapListing(
 ): Listing {
   const id = String(row.id);
   const ownerId = typeof row.owner_id === "string" ? row.owner_id : undefined;
+  const reviewCount = row.owner_review_count ? Number(row.owner_review_count) : 0;
+  const rating = reviewCount > 0 && row.owner_trust_score != null ? Number(row.owner_trust_score) : null;
 
   return {
     id,
@@ -193,14 +234,25 @@ function mapListing(
     wants: typeof row.wants === "string" ? row.wants : null,
     category: String(row.category_name ?? "Other"),
     categorySlug: String(row.category_slug ?? ""),
-    categoryEmoji: String(row.category_emoji ?? "📦"),
+    categoryEmoji: String(row.category_emoji ?? ""),
     distanceKm:
       typeof row.distance_km === "number" ? row.distance_km : row.distance_km ? Number(row.distance_km) : null,
+    areaLabel:
+      typeof row.location_label === "string" && row.location_label.length
+        ? row.location_label
+        : cityProvinceLabel({
+            regionName: typeof row.region_name === "string" ? row.region_name : null,
+            provinceName: typeof row.province_name === "string" ? row.province_name : null,
+            cityName: typeof row.city_name === "string" ? row.city_name : typeof row.city === "string" ? row.city : null,
+            barangayName: typeof row.barangay_name === "string" ? row.barangay_name : null,
+          }),
+    areaRank: row.area_rank == null ? null : Number(row.area_rank),
     ownerId,
     ownerName: String(row.owner_name ?? "SwapShelf member"),
     ownerInitials: String(row.owner_initials ?? "SS"),
     ownerAvatarUrl: typeof row.owner_avatar_url === "string" ? row.owner_avatar_url : null,
-    rating: row.owner_trust_score ? Number(row.owner_trust_score) : 5,
+    rating,
+    reviewCount,
     imageUrl: typeof row.image_url === "string" ? row.image_url : null,
     imageGradient: gradients[index % gradients.length],
     condition: conditionLabel(String(row.condition ?? "good")),
@@ -325,13 +377,21 @@ export const getPublicStats = cache(async (): Promise<PublicStats> => {
 export async function getPublicListings({
   search,
   category,
-  radiusKm,
+  areaScope,
+  regionCode,
+  provinceCode,
+  cityCode,
+  barangayCode,
   sort,
   limit = 24,
 }: {
   search?: string;
   category?: string;
-  radiusKm?: number;
+  areaScope?: string;
+  regionCode?: string;
+  provinceCode?: string;
+  cityCode?: string;
+  barangayCode?: string;
   sort?: string;
   limit?: number;
 } = {}): Promise<Listing[]> {
@@ -341,12 +401,18 @@ export async function getPublicListings({
 
   const currentUser = await getCurrentUser();
   const supabase = await createClient();
+  const selectedRegionCode = regionCode || currentUser?.profile.region_code || null;
+  const selectedProvinceCode = provinceCode || currentUser?.profile.province_code || null;
+  const selectedCityCode = cityCode || currentUser?.profile.city_code || null;
+  const selectedBarangayCode = barangayCode || currentUser?.profile.barangay_code || null;
   const { data, error } = await supabase.rpc("search_listings", {
     p_search: search || null,
     p_category_slug: category || null,
-    p_radius_km: radiusKm ?? null,
-    p_origin_lat: currentUser?.profile.latitude ?? null,
-    p_origin_lng: currentUser?.profile.longitude ?? null,
+    p_area_scope: areaScope || "all",
+    p_region_code: selectedRegionCode,
+    p_province_code: selectedProvinceCode,
+    p_city_code: selectedCityCode,
+    p_barangay_code: selectedBarangayCode,
     p_sort: sort || "newest",
   });
 
@@ -387,6 +453,7 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
           status: "active",
           city: null,
           postalCode: null,
+          location: {},
           createdAt: new Date().toISOString(),
           images: [],
         }
@@ -398,7 +465,7 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
   const { data: listing, error } = await supabase
     .from("listings")
     .select(
-      "id, owner_id, category_id, title, description, wants, condition, status, city, postal_code, latitude, longitude, created_at, categories(name, slug, emoji), listing_images(id, public_url, storage_path, alt_text, sort_order)",
+      "id, owner_id, category_id, title, description, wants, condition, status, city, postal_code, region_code, region_name, province_code, province_name, city_code, city_name, barangay_code, barangay_name, location_label, latitude, longitude, created_at, categories(name, slug, emoji), listing_images(id, public_url, storage_path, alt_text, sort_order)",
     )
     .eq("id", id)
     .single();
@@ -410,7 +477,7 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
   const [{ data: owner }, { data: saved }] = await Promise.all([
     supabase
       .from("public_profiles")
-      .select("id, display_name, initials, avatar_url, trust_score")
+      .select("id, display_name, initials, avatar_url, trust_score, review_count")
       .eq("id", listing.owner_id)
       .single(),
     currentUser
@@ -425,6 +492,16 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
 
   const category = firstRelation(listing.categories);
   const images = mapImages(Array.isArray(listing.listing_images) ? listing.listing_images : []);
+  const listingLocation = {
+    regionCode: listing.region_code,
+    regionName: listing.region_name,
+    provinceCode: listing.province_code,
+    provinceName: listing.province_name,
+    cityCode: listing.city_code,
+    cityName: listing.city_name,
+    barangayCode: listing.barangay_code,
+    barangayName: listing.barangay_name,
+  };
   const listingRow = {
     id: listing.id,
     title: listing.title,
@@ -434,6 +511,11 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
     category_name: category?.name,
     category_slug: category?.slug,
     category_emoji: category?.emoji,
+    region_name: listing.region_name,
+    province_name: listing.province_name,
+    city_name: listing.city_name,
+    barangay_name: listing.barangay_name,
+    location_label: listing.location_label ?? locationLabel(listingLocation),
     distance_km: distanceKm(
       currentUser?.profile.latitude,
       currentUser?.profile.longitude,
@@ -445,6 +527,7 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
     owner_initials: owner?.initials,
     owner_avatar_url: owner?.avatar_url,
     owner_trust_score: owner?.trust_score,
+    owner_review_count: owner?.review_count,
     image_url: images[0]?.publicUrl ?? null,
   };
 
@@ -458,6 +541,7 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
     status: listing.status,
     city: listing.city,
     postalCode: listing.postal_code,
+    location: listingLocation,
     createdAt: listing.created_at,
     images,
   };
@@ -474,7 +558,7 @@ export async function getEditableListing(id: string): Promise<EditableListing | 
   const { data: listing, error } = await supabase
     .from("listings")
     .select(
-      "id, owner_id, category_id, title, description, wants, condition, status, city, postal_code, latitude, longitude, listing_images(id, public_url, storage_path, alt_text, sort_order)",
+      "id, owner_id, category_id, title, description, wants, condition, status, city, postal_code, region_code, region_name, province_code, province_name, city_code, city_name, barangay_code, barangay_name, latitude, longitude, listing_images(id, public_url, storage_path, alt_text, sort_order)",
     )
     .eq("id", id)
     .eq("owner_id", currentUser.id)
@@ -494,6 +578,16 @@ export async function getEditableListing(id: string): Promise<EditableListing | 
     status: rawStatus(listing.status),
     city: listing.city,
     postalCode: listing.postal_code,
+    location: {
+      regionCode: listing.region_code,
+      regionName: listing.region_name,
+      provinceCode: listing.province_code,
+      provinceName: listing.province_name,
+      cityCode: listing.city_code,
+      cityName: listing.city_name,
+      barangayCode: listing.barangay_code,
+      barangayName: listing.barangay_name,
+    },
     latitude: listing.latitude == null ? null : Number(listing.latitude),
     longitude: listing.longitude == null ? null : Number(listing.longitude),
     images: mapImages(Array.isArray(listing.listing_images) ? listing.listing_images : []),
@@ -546,7 +640,9 @@ export async function getDashboardListings(): Promise<DashboardListing[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("listings")
-    .select("id, title, status, condition, created_at, categories(name, emoji), listing_images(public_url, sort_order)")
+    .select(
+      "id, title, status, condition, created_at, location_label, city_name, province_name, city, categories(name, emoji), listing_images(public_url, sort_order)",
+    )
     .eq("owner_id", currentUser.id)
     .order("created_at", { ascending: false });
 
@@ -577,6 +673,7 @@ export async function getDashboardListings(): Promise<DashboardListing[]> {
       imageUrl: firstImage?.public_url ?? null,
       createdAt: listing.created_at,
       pendingOfferCount: pendingOfferCounts.get(listing.id) ?? 0,
+      areaLabel: listing.location_label ?? cityProvinceLabel({ cityName: listing.city_name ?? listing.city, provinceName: listing.province_name }),
     };
   });
 }
@@ -619,7 +716,9 @@ export async function getSwapOffers(): Promise<OfferSummary[]> {
   const supabase = await createClient();
   const { data: offers } = await supabase
     .from("swap_offers")
-    .select("id, status, message, created_at, sender_id, receiver_id, listing_id, offered_listing_id")
+    .select(
+      "id, status, message, offer_details, meetup_note, created_at, sender_id, receiver_id, listing_id, offered_listing_id, swap_offer_images(id, public_url, storage_path, alt_text, sort_order), conversations(id)",
+    )
     .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
     .order("created_at", { ascending: false });
 
@@ -634,11 +733,12 @@ export async function getSwapOffers(): Promise<OfferSummary[]> {
 
   const [{ data: profiles }, { data: listings }] = await Promise.all([
     supabase.from("public_profiles").select("id, display_name, initials, avatar_url").in("id", userIds),
-    supabase.from("listings").select("id, title").in("id", listingIds),
+    supabase.from("listings").select("id, title, status").in("id", listingIds),
   ]);
 
   const profilesById = profileMap(profiles ?? []);
   const listingsById = listingTitleMap(listings ?? []);
+  const listingStatusById = new Map((listings ?? []).map((listing) => [listing.id, listing.status]));
 
   return offers.map((offer) => {
     const direction = offer.receiver_id === currentUser.id ? "incoming" : "outgoing";
@@ -650,8 +750,13 @@ export async function getSwapOffers(): Promise<OfferSummary[]> {
       direction,
       status: titleCaseStatus(offer.status),
       message: offer.message,
-      listingTitle: listingsById.get(offer.listing_id) ?? "Listing",
+      offerDetails: offer.offer_details ?? null,
+      meetupNote: offer.meetup_note ?? null,
+      listingTitle: listingsById.get(offer.listing_id) ?? "Listing unavailable",
+      listingUnavailable: !listingsById.has(offer.listing_id) || listingStatusById.get(offer.listing_id) === "archived",
       offeredListingTitle: offer.offered_listing_id ? listingsById.get(offer.offered_listing_id) ?? "Your listing" : null,
+      conversationId: firstRelation(offer.conversations)?.id ?? null,
+      images: mapImages(Array.isArray(offer.swap_offer_images) ? offer.swap_offer_images : []),
       otherPartyName: otherParty?.display_name ?? "SwapShelf member",
       otherPartyInitials: otherParty?.initials ?? "SS",
       otherPartyAvatarUrl: otherParty?.avatar_url ?? null,
@@ -670,7 +775,7 @@ export async function getConversations(): Promise<ConversationSummary[]> {
   const supabase = await createClient();
   const { data: participantRows } = await supabase
     .from("conversation_participants")
-    .select("conversation_id")
+    .select("conversation_id, last_read_at")
     .eq("user_id", currentUser.id);
 
   const conversationIds = (participantRows ?? []).map((row) => row.conversation_id);
@@ -678,17 +783,32 @@ export async function getConversations(): Promise<ConversationSummary[]> {
     return [];
   }
 
-  const [{ data: participants }, { data: messages }] = await Promise.all([
+  const [{ data: conversations }, { data: participants }, { data: messages }] = await Promise.all([
+    supabase.from("conversations").select("id, offer_id, last_message_at").in("id", conversationIds),
     supabase
       .from("conversation_participants")
       .select("conversation_id, user_id")
       .in("conversation_id", conversationIds),
     supabase
       .from("messages")
-      .select("conversation_id, body, created_at")
+      .select("id, conversation_id, body, created_at, sender_id")
       .in("conversation_id", conversationIds)
       .order("created_at", { ascending: false }),
   ]);
+
+  const offerIds = Array.from(new Set((conversations ?? []).map((conversation) => conversation.offer_id).filter(Boolean)));
+  const { data: offers } = offerIds.length
+    ? await supabase
+        .from("swap_offers")
+        .select("id, status, listing_id, offered_listing_id")
+        .in("id", offerIds)
+    : { data: [] };
+  const listingIds = Array.from(
+    new Set((offers ?? []).flatMap((offer) => [offer.listing_id, offer.offered_listing_id]).filter(Boolean)),
+  );
+  const { data: listings } = listingIds.length
+    ? await supabase.from("listings").select("id, title").in("id", listingIds)
+    : { data: [] };
 
   const otherIds = Array.from(
     new Set((participants ?? []).filter((row) => row.user_id !== currentUser.id).map((row) => row.user_id)),
@@ -698,23 +818,125 @@ export async function getConversations(): Promise<ConversationSummary[]> {
     : { data: [] };
 
   const profilesById = profileMap(profiles ?? []);
+  const offersById = new Map((offers ?? []).map((offer) => [offer.id, offer]));
+  const listingsById = listingTitleMap(listings ?? []);
+  const participantByConversation = new Map((participantRows ?? []).map((row) => [row.conversation_id, row]));
 
   return conversationIds.map((conversationId) => {
+    const conversation = conversations?.find((row) => row.id === conversationId);
+    const offer = conversation?.offer_id ? offersById.get(conversation.offer_id) : null;
     const otherId = participants?.find(
       (row) => row.conversation_id === conversationId && row.user_id !== currentUser.id,
     )?.user_id;
     const otherParty = otherId ? profilesById.get(otherId) : null;
     const latest = messages?.find((message) => message.conversation_id === conversationId);
+    const lastReadAt = participantByConversation.get(conversationId)?.last_read_at;
+    const unreadCount = (messages ?? []).filter(
+      (message) =>
+        message.conversation_id === conversationId &&
+        message.sender_id !== currentUser.id &&
+        (!lastReadAt || new Date(message.created_at) > new Date(lastReadAt)),
+    ).length;
 
     return {
       id: conversationId,
       otherPartyName: otherParty?.display_name ?? "SwapShelf member",
       otherPartyInitials: otherParty?.initials ?? "SS",
       otherPartyAvatarUrl: otherParty?.avatar_url ?? null,
+      listingTitle: offer ? listingsById.get(offer.listing_id) ?? "Listing unavailable" : "Listing unavailable",
+      offeredListingTitle: offer?.offered_listing_id ? listingsById.get(offer.offered_listing_id) ?? null : null,
+      offerStatus: offer ? titleCaseStatus(offer.status) : "Unknown",
       latestMessage: latest?.body ?? "No messages yet",
-      latestAt: latest?.created_at ?? null,
+      latestAt: latest?.created_at ?? conversation?.last_message_at ?? null,
+      unreadCount,
     };
   });
+}
+
+export async function getConversationThread(conversationId: string): Promise<ConversationThreadData | null> {
+  const currentUser = await requireUser();
+
+  if (!hasSupabaseEnv()) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  const { data: ownParticipant } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (!ownParticipant) {
+    return null;
+  }
+
+  const [{ data: conversation }, { data: participants }, { data: messages }] = await Promise.all([
+    supabase.from("conversations").select("id, offer_id").eq("id", conversationId).single(),
+    supabase.from("conversation_participants").select("user_id").eq("conversation_id", conversationId),
+    supabase
+      .from("messages")
+      .select("id, sender_id, body, created_at")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (!conversation) {
+    return null;
+  }
+
+  await supabase
+    .from("conversation_participants")
+    .update({ last_read_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", currentUser.id);
+
+  const otherId = participants?.find((participant) => participant.user_id !== currentUser.id)?.user_id;
+  const participantIds = Array.from(new Set([currentUser.id, otherId].filter(Boolean))) as string[];
+  const [{ data: profiles }, { data: offer }] = await Promise.all([
+    supabase.from("public_profiles").select("id, display_name, initials, avatar_url").in("id", participantIds),
+    conversation.offer_id
+      ? supabase
+          .from("swap_offers")
+          .select("id, status, listing_id, offered_listing_id")
+          .eq("id", conversation.offer_id)
+          .single()
+      : Promise.resolve({ data: null }),
+  ]);
+  const listingIds = offer ? [offer.listing_id, offer.offered_listing_id].filter(Boolean) : [];
+  const { data: listings } = listingIds.length
+    ? await supabase.from("listings").select("id, title").in("id", listingIds)
+    : { data: [] };
+
+  const profilesById = profileMap(profiles ?? []);
+  const listingsById = listingTitleMap(listings ?? []);
+  const otherParty = otherId ? profilesById.get(otherId) : null;
+
+  return {
+    id: conversationId,
+    otherPartyName: otherParty?.display_name ?? "SwapShelf member",
+    otherPartyInitials: otherParty?.initials ?? "SS",
+    otherPartyAvatarUrl: otherParty?.avatar_url ?? null,
+    listingTitle: offer ? listingsById.get(offer.listing_id) ?? "Listing unavailable" : "Listing unavailable",
+    offeredListingTitle: offer?.offered_listing_id ? listingsById.get(offer.offered_listing_id) ?? null : null,
+    offerStatus: offer ? titleCaseStatus(offer.status) : "Unknown",
+    canSend: offer ? ["accepted", "completed"].includes(offer.status) : false,
+    messages: (messages ?? []).map((message) => {
+      const sender = profilesById.get(message.sender_id);
+
+      return {
+        id: message.id,
+        body: message.body,
+        senderId: message.sender_id,
+        senderName: sender?.display_name ?? "SwapShelf member",
+        senderInitials: sender?.initials ?? "SS",
+        senderAvatarUrl: sender?.avatar_url ?? null,
+        createdAt: message.created_at,
+        isOwn: message.sender_id === currentUser.id,
+      };
+    }),
+  };
 }
 
 export async function getWishlistData(): Promise<WishlistData> {
@@ -741,9 +963,11 @@ export async function getWishlistData(): Promise<WishlistData> {
     const { data: rows } = await supabase.rpc("search_listings", {
       p_search: null,
       p_category_slug: null,
-      p_radius_km: null,
-      p_origin_lat: currentUser.profile.latitude,
-      p_origin_lng: currentUser.profile.longitude,
+      p_area_scope: "all",
+      p_region_code: currentUser.profile.region_code,
+      p_province_code: currentUser.profile.province_code,
+      p_city_code: currentUser.profile.city_code,
+      p_barangay_code: currentUser.profile.barangay_code,
       p_sort: "newest",
     });
 
@@ -780,7 +1004,10 @@ export async function getProfileData(): Promise<ProfileData> {
       longitude: null,
       searchRadiusKm: 10,
       trustScore: 5,
+      reviewCount: 0,
       completedSwaps: 0,
+      location: {},
+      areaLabel: null,
       createdAt: null,
     };
   }
@@ -788,9 +1015,19 @@ export async function getProfileData(): Promise<ProfileData> {
   const supabase = await createClient();
   const { data: publicProfile } = await supabase
     .from("public_profiles")
-    .select("trust_score, completed_swaps, created_at")
+    .select("trust_score, review_count, completed_swaps, created_at")
     .eq("id", currentUser.id)
     .single();
+  const location = {
+    regionCode: currentUser.profile.region_code,
+    regionName: currentUser.profile.region_name,
+    provinceCode: currentUser.profile.province_code,
+    provinceName: currentUser.profile.province_name,
+    cityCode: currentUser.profile.city_code,
+    cityName: currentUser.profile.city_name,
+    barangayCode: currentUser.profile.barangay_code,
+    barangayName: currentUser.profile.barangay_name,
+  };
 
   return {
     displayName: currentUser.profile.display_name,
@@ -803,7 +1040,10 @@ export async function getProfileData(): Promise<ProfileData> {
     longitude: currentUser.profile.longitude,
     searchRadiusKm: currentUser.profile.search_radius_km,
     trustScore: Number(publicProfile?.trust_score ?? 5),
+    reviewCount: Number(publicProfile?.review_count ?? 0),
     completedSwaps: Number(publicProfile?.completed_swaps ?? 0),
+    location,
+    areaLabel: currentUser.profile.area_label ?? locationLabel(location),
     createdAt: publicProfile?.created_at ?? null,
   };
 }

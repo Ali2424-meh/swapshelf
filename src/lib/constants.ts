@@ -22,13 +22,20 @@ export type CategoryDisplay = {
 };
 
 export const FALLBACK_CATEGORIES: CategoryDisplay[] = [
-  { name: "Books", slug: "books", icon: IconBookOpen, emoji: "📚", active: true, sort_order: 10 },
-  { name: "Video Games", slug: "video-games", icon: IconGamepad, emoji: "🎮", active: true, sort_order: 20 },
-  { name: "Board Games", slug: "board-games", icon: IconPuzzle, emoji: "🧩", active: true, sort_order: 30 },
-  { name: "Toys", slug: "toys", icon: IconBlocks, emoji: "🧸", active: true, sort_order: 40 },
-  { name: "Music & DVDs", slug: "music-dvds", icon: IconDisc, emoji: "💿", active: true, sort_order: 50 },
-  { name: "Tech", slug: "tech", icon: IconLaptop, emoji: "💻", active: true, sort_order: 60 },
-  { name: "Craft & Hobby", slug: "craft-hobby", icon: IconScissors, emoji: "✂️", active: true, sort_order: 70 },
+  { name: "Books", slug: "books", icon: IconBookOpen, emoji: "Books", active: true, sort_order: 10 },
+  { name: "Video Games", slug: "video-games", icon: IconGamepad, emoji: "Games", active: true, sort_order: 20 },
+  { name: "Board Games", slug: "board-games", icon: IconPuzzle, emoji: "Board", active: true, sort_order: 30 },
+  { name: "Toys", slug: "toys", icon: IconBlocks, emoji: "Toys", active: true, sort_order: 40 },
+  { name: "Music & DVDs", slug: "music-dvds", icon: IconDisc, emoji: "Music", active: true, sort_order: 50 },
+  { name: "Tech", slug: "tech", icon: IconLaptop, emoji: "Tech", active: true, sort_order: 60 },
+  { name: "Craft & Hobby", slug: "craft-hobby", icon: IconScissors, emoji: "Craft", active: true, sort_order: 70 },
+];
+
+export const AREA_SCOPE_OPTIONS = [
+  { label: "Same barangay", value: "barangay" },
+  { label: "Same city/municipality", value: "city" },
+  { label: "Same province", value: "province" },
+  { label: "All Philippines", value: "all" },
 ];
 
 export const RADIUS_OPTIONS = [
@@ -47,11 +54,14 @@ export type Listing = {
   categorySlug?: string;
   categoryEmoji?: string;
   distanceKm: number | null;
+  areaLabel?: string | null;
+  areaRank?: number | null;
   ownerId?: string;
   ownerName: string;
   ownerInitials: string;
   ownerAvatarUrl?: string | null;
-  rating: number;
+  rating: number | null;
+  reviewCount: number;
   imageUrl?: string | null;
   imageGradient: string;
   condition: "Like New" | "Good" | "Fair";
@@ -65,11 +75,13 @@ export const FALLBACK_LISTINGS: Listing[] = [
     title: "The Last of Us Part II (PS4)",
     category: "Video Games",
     categorySlug: "video-games",
-    categoryEmoji: "🎮",
-    distanceKm: 2.5,
+    categoryEmoji: "Games",
+    distanceKm: null,
+    areaLabel: "Cebu City, Cebu",
     ownerName: "Alex M.",
     ownerInitials: "AM",
-    rating: 4.8,
+    rating: null,
+    reviewCount: 0,
     imageGradient: "from-slate-400 to-slate-600",
     condition: "Like New",
     isSaved: false,
@@ -80,11 +92,13 @@ export const FALLBACK_LISTINGS: Listing[] = [
     title: "Dune Hardcover First Edition",
     category: "Books",
     categorySlug: "books",
-    categoryEmoji: "📚",
-    distanceKm: 1.2,
+    categoryEmoji: "Books",
+    distanceKm: null,
+    areaLabel: "Quezon City, Metro Manila",
     ownerName: "Sam K.",
     ownerInitials: "SK",
-    rating: 4.9,
+    rating: null,
+    reviewCount: 0,
     imageGradient: "from-amber-300 to-orange-400",
     condition: "Good",
     isSaved: false,
@@ -95,11 +109,13 @@ export const FALLBACK_LISTINGS: Listing[] = [
     title: "Catan Complete Set",
     category: "Board Games",
     categorySlug: "board-games",
-    categoryEmoji: "🧩",
-    distanceKm: 4.1,
+    categoryEmoji: "Board",
+    distanceKm: null,
+    areaLabel: "Davao City, Davao del Sur",
     ownerName: "Jordan P.",
     ownerInitials: "JP",
-    rating: 4.6,
+    rating: null,
+    reviewCount: 0,
     imageGradient: "from-emerald-400 to-teal-500",
     condition: "Like New",
     isSaved: false,

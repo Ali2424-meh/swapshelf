@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/auth/actions";
 import {
-  IconArrowLeftRight, IconBox, IconHeart, IconLogOut,
+  IconArrowLeftRight, IconBox, IconHeart, IconLayoutDashboard, IconLogOut,
   IconMessageCircle, IconUser,
 } from "@/components/icons";
 
 const NAV_ITEMS = [
-  { href: "/dashboard",          label: "My Listings",     icon: IconBox            },
+  { href: "/dashboard",          label: "Overview",        icon: IconLayoutDashboard },
+  { href: "/dashboard/listings", label: "My Listings",     icon: IconBox            },
   { href: "/dashboard/offers",   label: "Swap Offers",     icon: IconArrowLeftRight },
   { href: "/dashboard/messages", label: "Messages",        icon: IconMessageCircle  },
   { href: "/dashboard/wishlist", label: "Wishlist",        icon: IconHeart          },
@@ -22,7 +23,7 @@ export function DashboardNav() {
   return (
     <nav className="mt-5 space-y-0.5">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || (href === "/dashboard" && pathname.startsWith("/dashboard/listings"));
+        const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
         return (
           <Link
             key={href}

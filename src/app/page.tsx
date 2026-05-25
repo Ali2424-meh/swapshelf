@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppShell } from "@/components/app-shell";
 import { ListingCard } from "@/components/listing-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -70,7 +71,7 @@ export default async function HomePage() {
 
         {/* Stats bar */}
         <section className="border-b border-border bg-card">
-          <div className="mx-auto flex max-w-6xl divide-x divide-border px-4 sm:px-6">
+          <AppShell className="flex divide-x divide-border">
             {[
               { label: "Active listings",   value: stats.activeListings.toLocaleString()   },
               { label: "Community members", value: stats.communityMembers.toLocaleString() },
@@ -81,11 +82,11 @@ export default async function HomePage() {
                 <span className="mt-0.5 text-xs text-muted">{label}</span>
               </div>
             ))}
-          </div>
+          </AppShell>
         </section>
 
         {/* Categories */}
-        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+        <AppShell className="py-14">
           <div className="flex items-end justify-between">
             <div>
               <h2 className="font-display text-2xl font-semibold text-foreground">Browse Categories</h2>
@@ -109,10 +110,10 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-        </section>
+        </AppShell>
 
         {/* Listings */}
-        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        <AppShell className="pb-20">
           <div className="flex items-end justify-between">
             <div>
               <h2 className="font-display text-2xl font-semibold text-foreground">Newly Listed Nearby</h2>
@@ -122,7 +123,7 @@ export default async function HomePage() {
               View all →
             </Link>
           </div>
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {listings.map((listing, i) => (
               <div key={listing.id} className={`animate-fade-up animate-fade-up-${Math.min(i + 1, 6)}`}>
                 <ListingCard listing={listing} returnTo="/" />
@@ -138,7 +139,7 @@ export default async function HomePage() {
               <p className="mt-2 text-sm text-muted">Be the first to list something in your area!</p>
             </div>
           )}
-        </section>
+        </AppShell>
 
         {/* CTA */}
         <section className="mx-4 mb-20 overflow-hidden rounded-3xl bg-foreground px-6 py-14 text-center text-white sm:mx-6 sm:py-16">

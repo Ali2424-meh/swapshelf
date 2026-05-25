@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/auth";
+import { locationFromForm } from "@/lib/location";
 import { hasSupabaseEnv } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,7 +18,14 @@ const signupSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.email().trim(),
   password: z.string().min(8).max(72),
-  location: z.string().trim().max(120).optional(),
+  region_code: z.string().trim().min(1),
+  region_name: z.string().trim().min(1),
+  province_code: z.string().trim().min(1),
+  province_name: z.string().trim().min(1),
+  city_code: z.string().trim().min(1),
+  city_name: z.string().trim().min(1),
+  barangay_code: z.string().trim().optional(),
+  barangay_name: z.string().trim().optional(),
 });
 
 const optionalLatitude = z.preprocess(
@@ -57,6 +65,9 @@ const uuidSchema = z.uuid();
 const maxListingPhotos = 6;
 const maxListingPhotoSize = 10 * 1024 * 1024;
 const allowedListingPhotoTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const maxOfferPhotos = 4;
+const maxOfferPhotoSize = 10 * 1024 * 1024;
+const allowedOfferPhotoTypes = allowedListingPhotoTypes;
 const maxAvatarSize = 5 * 1024 * 1024;
 const allowedAvatarTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
@@ -105,8 +116,8 @@ function conditionLabelToValue(raw: string) {
   return raw;
 }
 
-function photoFiles(formData: FormData) {
-  return formData.getAll("photos").filter((entry): entry is File => entry instanceof File && entry.size > 0);
+function photoFiles(formData: FormData, name = "photos") {
+  return formData.getAll(name).filter((entry): entry is File => entry instanceof File && entry.size > 0);
 }
 
 async function uploadListingPhoto({
@@ -152,6 +163,52 @@ async function uploadListingPhoto({
   if (imageError) {
     await supabase.storage.from("listing-photos").remove([path]);
     return { error: imageError.message || "Could not save one of the uploaded photos." };
+  }
+
+  return { error: null };
+}
+
+async function uploadOfferPhoto({
+  supabase,
+  ownerId,
+  offerId,
+  photo,
+  sortOrder,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  ownerId: string;
+  offerId: string;
+  photo: File;
+  sortOrder: number;
+}) {
+  const ext = photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${ownerId}/${offerId}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from("offer-photos").upload(path, photo, {
+    contentType: photo.type || "image/jpeg",
+    upsert: false,
+  });
+
+  if (uploadError) {
+    return { error: uploadError.message || "Could not upload one of the offer photos." };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("offer-photos").getPublicUrl(path);
+
+  const { error: imageError } = await supabase.from("swap_offer_images").insert({
+    offer_id: offerId,
+    owner_id: ownerId,
+    storage_path: path,
+    public_url: publicUrl,
+    alt_text: "Offer photo",
+    sort_order: sortOrder,
+  });
+
+  if (imageError) {
+    await supabase.storage.from("offer-photos").remove([path]);
+    return { error: imageError.message || "Could not save one of the offer photos." };
   }
 
   return { error: null };
@@ -218,11 +275,18 @@ export async function signupAction(formData: FormData) {
     name: value(formData, "name"),
     email: value(formData, "email"),
     password: value(formData, "password"),
-    location: optionalValue(formData, "location"),
+    region_code: value(formData, "region_code"),
+    region_name: value(formData, "region_name"),
+    province_code: value(formData, "province_code"),
+    province_name: value(formData, "province_name"),
+    city_code: value(formData, "city_code"),
+    city_name: value(formData, "city_name"),
+    barangay_code: optionalValue(formData, "barangay_code"),
+    barangay_name: optionalValue(formData, "barangay_name"),
   });
 
   if (!parsed.success) {
-    authError("/signup", "Check your details and use a password with at least 8 characters.");
+    authError("/signup", "Check your details, choose your swapping city, and use a password with at least 8 characters.");
   }
 
   const supabase = await createClient();
@@ -232,7 +296,15 @@ export async function signupAction(formData: FormData) {
     options: {
       data: {
         display_name: parsed.data.name,
-        city: parsed.data.location ?? null,
+        city: parsed.data.city_name,
+        region_code: parsed.data.region_code,
+        region_name: parsed.data.region_name,
+        province_code: parsed.data.province_code,
+        province_name: parsed.data.province_name,
+        city_code: parsed.data.city_code,
+        city_name: parsed.data.city_name,
+        barangay_code: parsed.data.barangay_code ?? null,
+        barangay_name: parsed.data.barangay_name ?? null,
       },
     },
   });
@@ -274,6 +346,19 @@ export async function createListingAction(formData: FormData) {
     redirect("/dashboard/listings/new?error=Please complete the required listing fields.");
   }
 
+  const formLocation = locationFromForm(formData);
+  const listingLocation = {
+    region_code: formLocation.regionCode ?? currentUser.profile.region_code,
+    region_name: formLocation.regionName ?? currentUser.profile.region_name,
+    province_code: formLocation.provinceCode ?? currentUser.profile.province_code,
+    province_name: formLocation.provinceName ?? currentUser.profile.province_name,
+    city_code: formLocation.cityCode ?? currentUser.profile.city_code,
+    city_name: formLocation.cityName ?? currentUser.profile.city_name,
+    barangay_code: formLocation.barangayCode ?? currentUser.profile.barangay_code,
+    barangay_name: formLocation.barangayName ?? currentUser.profile.barangay_name,
+    location_label: formLocation.locationLabel ?? currentUser.profile.location_label,
+  };
+
   const supabase = await createClient();
   const { data: listing, error } = await supabase
     .from("listings")
@@ -284,8 +369,9 @@ export async function createListingAction(formData: FormData) {
       description: parsed.data.description ?? null,
       condition: parsed.data.condition,
       wants: parsed.data.wants ?? null,
-      city: parsed.data.city ?? currentUser.profile.city,
+      city: parsed.data.city ?? listingLocation.city_name ?? currentUser.profile.city,
       postal_code: parsed.data.postal_code ?? currentUser.profile.postal_code,
+      ...listingLocation,
       latitude: parsed.data.latitude ?? currentUser.profile.latitude,
       longitude: parsed.data.longitude ?? currentUser.profile.longitude,
     })
@@ -332,7 +418,7 @@ export async function createListingAction(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/dashboard/listings");
 }
 
 export async function toggleSavedListingAction(formData: FormData) {
@@ -412,7 +498,23 @@ export async function createOfferAction(formData: FormData) {
     redirect(`${next}?error=${encodeURIComponent("You already have a pending offer using that item.")}`);
   }
 
-  const { error } = await supabase
+  const offerPhotos = photoFiles(formData, "offer_photos");
+
+  if (offerPhotos.length > maxOfferPhotos) {
+    redirect(`${next}?error=${encodeURIComponent(`You can attach up to ${maxOfferPhotos} offer photos.`)}`);
+  }
+
+  for (const photo of offerPhotos) {
+    if (photo.size > maxOfferPhotoSize) {
+      redirect(`${next}?error=${encodeURIComponent("Each offer photo must be 10 MB or smaller.")}`);
+    }
+
+    if (!allowedOfferPhotoTypes.has(photo.type)) {
+      redirect(`${next}?error=${encodeURIComponent("Offer photos must be PNG, JPG, WEBP, or GIF files.")}`);
+    }
+  }
+
+  const { data: offer, error } = await supabase
     .from("swap_offers")
     .insert({
       listing_id: listing.id,
@@ -420,10 +522,32 @@ export async function createOfferAction(formData: FormData) {
       receiver_id: listing.owner_id,
       offered_listing_id: offeredListing.id,
       message: optionalValue(formData, "message") ?? "I am interested in swapping for this item.",
+      offer_details: optionalValue(formData, "offer_details") ?? null,
+      meetup_note: optionalValue(formData, "meetup_note") ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !offer) {
+    redirect(`${next}?error=${encodeURIComponent("Could not send that offer.")}`);
+  }
+
+  for (const [index, photo] of offerPhotos.entries()) {
+    const { error: photoError } = await uploadOfferPhoto({
+      supabase,
+      ownerId: currentUser.id,
+      offerId: offer.id,
+      photo,
+      sortOrder: index,
     });
 
+    if (photoError) {
+      redirect(`${next}?error=${encodeURIComponent(photoError)}`);
+    }
+  }
+
   revalidatePath("/", "layout");
-  redirect(error ? `${next}?error=${encodeURIComponent("Could not send that offer.")}` : "/dashboard/offers");
+  redirect("/dashboard/offers?message=Offer sent.");
 }
 
 export async function updateListingAction(formData: FormData) {
@@ -432,7 +556,7 @@ export async function updateListingAction(formData: FormData) {
   const listingId = uuidSchema.safeParse(value(formData, "listing_id"));
 
   if (!listingId.success) {
-    redirect("/dashboard?error=Listing not found.");
+    redirect("/dashboard/listings?error=Listing not found.");
   }
 
   const parsed = listingSchema
@@ -465,7 +589,7 @@ export async function updateListingAction(formData: FormData) {
     .single();
 
   if (existingError || !existing) {
-    redirect("/dashboard?error=Listing not found.");
+    redirect("/dashboard/listings?error=Listing not found.");
   }
 
   const existingImages = Array.isArray(existing.listing_images) ? existing.listing_images : [];
@@ -492,6 +616,19 @@ export async function updateListingAction(formData: FormData) {
     }
   }
 
+  const formLocation = locationFromForm(formData);
+  const listingLocation = {
+    region_code: formLocation.regionCode ?? currentUser.profile.region_code,
+    region_name: formLocation.regionName ?? currentUser.profile.region_name,
+    province_code: formLocation.provinceCode ?? currentUser.profile.province_code,
+    province_name: formLocation.provinceName ?? currentUser.profile.province_name,
+    city_code: formLocation.cityCode ?? currentUser.profile.city_code,
+    city_name: formLocation.cityName ?? currentUser.profile.city_name,
+    barangay_code: formLocation.barangayCode ?? currentUser.profile.barangay_code,
+    barangay_name: formLocation.barangayName ?? currentUser.profile.barangay_name,
+    location_label: formLocation.locationLabel ?? currentUser.profile.location_label,
+  };
+
   const { error: updateError } = await supabase
     .from("listings")
     .update({
@@ -500,8 +637,9 @@ export async function updateListingAction(formData: FormData) {
       description: parsed.data.description ?? null,
       condition: parsed.data.condition,
       wants: parsed.data.wants ?? null,
-      city: parsed.data.city ?? currentUser.profile.city,
+      city: parsed.data.city ?? listingLocation.city_name ?? currentUser.profile.city,
       postal_code: parsed.data.postal_code ?? currentUser.profile.postal_code,
+      ...listingLocation,
       latitude: parsed.data.latitude ?? currentUser.profile.latitude,
       longitude: parsed.data.longitude ?? currentUser.profile.longitude,
       status: parsed.data.status,
@@ -565,7 +703,7 @@ export async function archiveListingAction(formData: FormData) {
     .single();
 
   if (!listing) {
-    redirect("/dashboard?error=Listing not found.");
+    redirect("/dashboard/listings?error=Listing not found.");
   }
 
   const nextStatus = listing.status === "archived" ? "active" : "archived";
@@ -576,7 +714,7 @@ export async function archiveListingAction(formData: FormData) {
     .eq("owner_id", currentUser.id);
 
   revalidatePath("/", "layout");
-  redirect(error ? "/dashboard?error=Could not update that listing." : "/dashboard");
+  redirect(error ? "/dashboard/listings?error=Could not update that listing." : "/dashboard/listings");
 }
 
 export async function createReportAction(formData: FormData) {
@@ -646,6 +784,8 @@ export async function updateOfferStatusAction(formData: FormData) {
     redirect("/dashboard/offers?error=Could not update that offer.");
   }
 
+  let acceptedConversationId: string | null = null;
+
   if (status.data === "accepted") {
     const { data: existingConversation } = await supabase
       .from("conversations")
@@ -662,6 +802,7 @@ export async function updateOfferStatusAction(formData: FormData) {
           .single();
 
     if (conversation) {
+      acceptedConversationId = conversation.id;
       await supabase.from("conversation_participants").upsert(
         [
           { conversation_id: conversation.id, user_id: offer.sender_id },
@@ -673,6 +814,9 @@ export async function updateOfferStatusAction(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
+  if (acceptedConversationId) {
+    redirect(`/dashboard/messages/${acceptedConversationId}`);
+  }
   redirect("/dashboard/offers");
 }
 
@@ -687,14 +831,56 @@ export async function sendMessageAction(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("id, offer_id, swap_offers(status)")
+    .eq("id", conversationId.data)
+    .single();
+  const offer = Array.isArray(conversation?.swap_offers) ? conversation?.swap_offers[0] : conversation?.swap_offers;
+  const { data: participant } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("conversation_id", conversationId.data)
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (!conversation || !participant || !offer || !["accepted", "completed"].includes(offer.status)) {
+    redirect(`/dashboard/messages/${conversationId.data}?error=This chat is not available.`);
+  }
+
   await supabase.from("messages").insert({
     conversation_id: conversationId.data,
     sender_id: currentUser.id,
     body: body.data,
   });
+  await supabase
+    .from("conversation_participants")
+    .update({ last_read_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId.data)
+    .eq("user_id", currentUser.id);
 
   revalidatePath("/dashboard/messages");
-  redirect("/dashboard/messages");
+  redirect(`/dashboard/messages/${conversationId.data}`);
+}
+
+export async function markConversationReadAction(formData: FormData) {
+  configuredOrRedirect("/dashboard/messages");
+  const currentUser = await requireUser();
+  const conversationId = uuidSchema.safeParse(value(formData, "conversation_id"));
+
+  if (!conversationId.success) {
+    redirect("/dashboard/messages");
+  }
+
+  const supabase = await createClient();
+  await supabase
+    .from("conversation_participants")
+    .update({ last_read_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId.data)
+    .eq("user_id", currentUser.id);
+
+  revalidatePath("/dashboard/messages");
+  redirect(`/dashboard/messages/${conversationId.data}`);
 }
 
 export async function createWishlistAlertAction(formData: FormData) {
@@ -734,13 +920,23 @@ export async function updateProfileAction(formData: FormData) {
     redirect("/dashboard/profile?error=Profile update failed. Check the fields and try again.");
   }
 
+  const formLocation = locationFromForm(formData);
   const supabase = await createClient();
   await supabase
     .from("profiles")
     .update({
       display_name: parsed.data.display_name,
-      city: parsed.data.city ?? null,
+      city: parsed.data.city ?? formLocation.cityName ?? null,
       postal_code: parsed.data.postal_code ?? null,
+      region_code: formLocation.regionCode,
+      region_name: formLocation.regionName,
+      province_code: formLocation.provinceCode,
+      province_name: formLocation.provinceName,
+      city_code: formLocation.cityCode,
+      city_name: formLocation.cityName,
+      barangay_code: formLocation.barangayCode,
+      barangay_name: formLocation.barangayName,
+      location_label: formLocation.locationLabel,
       search_radius_km: parsed.data.search_radius_km,
       latitude: parsed.data.latitude ?? null,
       longitude: parsed.data.longitude ?? null,
@@ -808,7 +1004,7 @@ export async function createCategoryAction(formData: FormData) {
   await requireAdmin();
 
   const name = z.string().trim().min(2).max(80).safeParse(value(formData, "name"));
-  const emoji = z.string().trim().min(1).max(8).safeParse(value(formData, "emoji") || "📦");
+  const emoji = z.string().trim().min(1).max(16).safeParse(value(formData, "emoji") || "Box");
 
   if (!name.success || !emoji.success) {
     redirect("/admin/categories?error=Category name is required.");
