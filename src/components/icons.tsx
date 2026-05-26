@@ -42,6 +42,7 @@ export const IconMenu = ic('<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1=
 export const IconX = ic('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
 export const IconPlus = ic('<path d="M5 12h14"/><path d="M12 5v14"/>');
 export const IconCheck = ic('<polyline points="20 6 9 17 4 12"/>');
+export const IconCheckCheck = ic('<path d="m18 6-7 7-3-3"/><path d="m22 10-7 7-3-3"/><path d="m2 12 3 3 7-7"/>');
 export const IconUpload = ic('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>');
 export const IconTrendingUp = ic('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>');
 export const IconAlertCircle = ic('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>');
@@ -49,3 +50,11 @@ export const IconExternalLink = ic('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-
 export const IconEye = ic('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>');
 export const IconPencil = ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>');
 export const IconArchive = ic('<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>');
+export const IconSend = ic('<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>');
+export const IconClock = ic('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>');
+export const IconEyeCheck = ic('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path d="m16 18 2 2 4-4"/>');
+export const IconUsers = ic('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>');
+export const IconRefreshCw = ic('<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12A9 9 0 0 1 18.5 5.8L21 8"/><path d="M21 3v5h-5"/>');
+export const IconFlag = ic('<path d="M4 22V4"/><path d="M4 15s2-1 5-1 5 2 8 2 3-1 3-1V5s0 1-3 1-5-2-8-2-5 1-5 1"/>');
+export const IconLeaf = ic('<path d="M11 20A7 7 0 0 1 4 13c0-6 8-10 16-10 0 8-4 16-10 16Z"/><path d="M4 21c4-7 9-10 16-12"/>');
+export const IconCircleDot = ic('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>');

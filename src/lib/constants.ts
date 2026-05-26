@@ -16,25 +16,37 @@ import {
 } from "@/components/icons";
 
 type IconComponent = ComponentType<{ className?: string; strokeWidth?: number }>;
+export type CategoryIconKey = "book" | "gamepad" | "puzzle" | "blocks" | "disc" | "laptop" | "scissors" | "box";
 
 export type CategoryDisplay = {
   id?: string;
   name: string;
   slug: string;
+  iconKey: CategoryIconKey;
   icon: IconComponent;
-  emoji: string;
   active?: boolean;
   sort_order?: number;
 };
 
 export const FALLBACK_CATEGORIES: CategoryDisplay[] = [
-  { name: "Books", slug: "books", icon: IconBookOpen, emoji: "Books", active: true, sort_order: 10 },
-  { name: "Video Games", slug: "video-games", icon: IconGamepad, emoji: "Games", active: true, sort_order: 20 },
-  { name: "Board Games", slug: "board-games", icon: IconPuzzle, emoji: "Board", active: true, sort_order: 30 },
-  { name: "Toys", slug: "toys", icon: IconBlocks, emoji: "Toys", active: true, sort_order: 40 },
-  { name: "Music & DVDs", slug: "music-dvds", icon: IconDisc, emoji: "Music", active: true, sort_order: 50 },
-  { name: "Tech", slug: "tech", icon: IconLaptop, emoji: "Tech", active: true, sort_order: 60 },
-  { name: "Craft & Hobby", slug: "craft-hobby", icon: IconScissors, emoji: "Craft", active: true, sort_order: 70 },
+  { name: "Books", slug: "books", iconKey: "book", icon: IconBookOpen, active: true, sort_order: 10 },
+  { name: "Video Games", slug: "video-games", iconKey: "gamepad", icon: IconGamepad, active: true, sort_order: 20 },
+  { name: "Board Games", slug: "board-games", iconKey: "puzzle", icon: IconPuzzle, active: true, sort_order: 30 },
+  { name: "Toys", slug: "toys", iconKey: "blocks", icon: IconBlocks, active: true, sort_order: 40 },
+  { name: "Music & DVDs", slug: "music-dvds", iconKey: "disc", icon: IconDisc, active: true, sort_order: 50 },
+  { name: "Tech", slug: "tech", iconKey: "laptop", icon: IconLaptop, active: true, sort_order: 60 },
+  { name: "Craft & Hobby", slug: "craft-hobby", iconKey: "scissors", icon: IconScissors, active: true, sort_order: 70 },
+];
+
+export const CATEGORY_ICON_OPTIONS: { value: CategoryIconKey; label: string; icon: IconComponent }[] = [
+  { value: "book", label: "Book", icon: IconBookOpen },
+  { value: "gamepad", label: "Gamepad", icon: IconGamepad },
+  { value: "puzzle", label: "Puzzle", icon: IconPuzzle },
+  { value: "blocks", label: "Blocks", icon: IconBlocks },
+  { value: "disc", label: "Disc", icon: IconDisc },
+  { value: "laptop", label: "Laptop", icon: IconLaptop },
+  { value: "scissors", label: "Scissors", icon: IconScissors },
+  { value: "box", label: "Box", icon: IconBox },
 ];
 
 export const AREA_SCOPE_OPTIONS = [
@@ -58,7 +70,7 @@ export type Listing = {
   wants?: string | null;
   category: string;
   categorySlug?: string;
-  categoryEmoji?: string;
+  categoryIconKey?: CategoryIconKey;
   distanceKm: number | null;
   areaLabel?: string | null;
   areaRank?: number | null;
@@ -81,7 +93,7 @@ export const FALLBACK_LISTINGS: Listing[] = [
     title: "The Last of Us Part II (PS4)",
     category: "Video Games",
     categorySlug: "video-games",
-    categoryEmoji: "Games",
+    categoryIconKey: "gamepad",
     distanceKm: null,
     areaLabel: "Cebu City, Cebu",
     ownerName: "Alex M.",
@@ -98,7 +110,7 @@ export const FALLBACK_LISTINGS: Listing[] = [
     title: "Dune Hardcover First Edition",
     category: "Books",
     categorySlug: "books",
-    categoryEmoji: "Books",
+    categoryIconKey: "book",
     distanceKm: null,
     areaLabel: "Quezon City, Metro Manila",
     ownerName: "Sam K.",
@@ -115,7 +127,7 @@ export const FALLBACK_LISTINGS: Listing[] = [
     title: "Catan Complete Set",
     category: "Board Games",
     categorySlug: "board-games",
-    categoryEmoji: "Board",
+    categoryIconKey: "puzzle",
     distanceKm: null,
     areaLabel: "Davao City, Davao del Sur",
     ownerName: "Jordan P.",
@@ -129,8 +141,16 @@ export const FALLBACK_LISTINGS: Listing[] = [
   },
 ];
 
-export function iconForCategory(slug?: string): IconComponent {
+export function iconForCategory(iconKeyOrSlug?: string | null): IconComponent {
   const map: Record<string, IconComponent> = {
+    book: IconBookOpen,
+    gamepad: IconGamepad,
+    puzzle: IconPuzzle,
+    blocks: IconBlocks,
+    disc: IconDisc,
+    laptop: IconLaptop,
+    scissors: IconScissors,
+    box: IconBox,
     books: IconBookOpen,
     "video-games": IconGamepad,
     "board-games": IconPuzzle,
@@ -139,7 +159,7 @@ export function iconForCategory(slug?: string): IconComponent {
     tech: IconLaptop,
     "craft-hobby": IconScissors,
   };
-  return map[slug ?? ""] ?? IconBlocks;
+  return map[iconKeyOrSlug ?? ""] ?? IconBox;
 }
 
 export const DASHBOARD_NAV_ITEMS = [

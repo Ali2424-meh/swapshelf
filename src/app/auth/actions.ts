@@ -85,6 +85,7 @@ const maxOfferPhotoSize = 10 * 1024 * 1024;
 const allowedOfferPhotoTypes = allowedListingPhotoTypes;
 const maxAvatarSize = 5 * 1024 * 1024;
 const allowedAvatarTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+const categoryIconSchema = z.enum(["book", "gamepad", "puzzle", "blocks", "disc", "laptop", "scissors", "box"]);
 
 export type SendMessageState = {
   error?: string;
@@ -93,6 +94,8 @@ export type SendMessageState = {
     body: string;
     senderId: string;
     createdAt: string;
+    deliveredAt: string | null;
+    seenAt: string | null;
   };
 };
 
@@ -950,7 +953,7 @@ export async function sendMessageInlineAction(
       sender_id: currentUser.id,
       body: body.data,
     })
-    .select("id, body, sender_id, created_at")
+    .select("id, body, sender_id, created_at, delivered_at, seen_at")
     .single();
 
   if (error || !message) {
@@ -970,6 +973,8 @@ export async function sendMessageInlineAction(
       body: message.body,
       senderId: message.sender_id,
       createdAt: message.created_at,
+      deliveredAt: message.delivered_at,
+      seenAt: message.seen_at,
     },
   };
 }
@@ -1115,9 +1120,9 @@ export async function createCategoryAction(formData: FormData) {
   await requireAdmin();
 
   const name = z.string().trim().min(2).max(80).safeParse(value(formData, "name"));
-  const emoji = z.string().trim().min(1).max(16).safeParse(value(formData, "emoji") || "Box");
+  const iconKey = categoryIconSchema.safeParse(value(formData, "icon_key") || "box");
 
-  if (!name.success || !emoji.success) {
+  if (!name.success || !iconKey.success) {
     redirect("/admin/categories?error=Category name is required.");
   }
 
@@ -1125,7 +1130,7 @@ export async function createCategoryAction(formData: FormData) {
   await supabase.from("categories").insert({
     name: name.data,
     slug: slugify(name.data),
-    emoji: emoji.data,
+    icon_key: iconKey.data,
     sort_order: Number(value(formData, "sort_order")) || 100,
   });
 

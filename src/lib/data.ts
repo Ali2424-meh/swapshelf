@@ -5,6 +5,7 @@ import {
   FALLBACK_LISTINGS,
   iconForCategory,
   type CategoryDisplay,
+  type CategoryIconKey,
   type Listing,
 } from "@/lib/constants";
 import { cityProvinceLabel, locationLabel, type PhilippineLocation } from "@/lib/location";
@@ -23,7 +24,7 @@ export type DashboardListing = {
   status: string;
   condition: string;
   category: string;
-  emoji: string;
+  iconKey: CategoryIconKey;
   imageUrl: string | null;
   createdAt: string;
   pendingOfferCount: number;
@@ -110,6 +111,8 @@ export type ConversationMessage = {
   senderInitials: string;
   senderAvatarUrl: string | null;
   createdAt: string;
+  deliveredAt: string | null;
+  seenAt: string | null;
   isOwn: boolean;
 };
 
@@ -235,7 +238,7 @@ function mapListing(
     wants: typeof row.wants === "string" ? row.wants : null,
     category: String(row.category_name ?? "Other"),
     categorySlug: String(row.category_slug ?? ""),
-    categoryEmoji: String(row.category_emoji ?? ""),
+    categoryIconKey: String(row.category_icon_key ?? "box") as CategoryIconKey,
     distanceKm:
       typeof row.distance_km === "number" ? row.distance_km : row.distance_km ? Number(row.distance_km) : null,
     areaLabel:
@@ -328,7 +331,7 @@ export const getCategories = cache(async (includeInactive = false): Promise<Cate
   const supabase = await createClient();
   let query = supabase
     .from("categories")
-    .select("id, name, slug, emoji, active, sort_order")
+    .select("id, name, slug, icon_key, active, sort_order")
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
 
@@ -346,8 +349,8 @@ export const getCategories = cache(async (includeInactive = false): Promise<Cate
     id: category.id,
     name: category.name,
     slug: category.slug,
-    emoji: category.emoji ?? "📦",
-    icon: iconForCategory(category.slug),
+    iconKey: (category.icon_key ?? "box") as CategoryIconKey,
+    icon: iconForCategory(category.icon_key ?? category.slug),
     active: category.active,
     sort_order: category.sort_order,
   }));
@@ -466,7 +469,7 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
   const { data: listing, error } = await supabase
     .from("listings")
     .select(
-      "id, owner_id, category_id, title, description, wants, condition, status, city, postal_code, region_code, region_name, province_code, province_name, city_code, city_name, barangay_code, barangay_name, location_label, latitude, longitude, created_at, categories(name, slug, emoji), listing_images(id, public_url, storage_path, alt_text, sort_order)",
+      "id, owner_id, category_id, title, description, wants, condition, status, city, postal_code, region_code, region_name, province_code, province_name, city_code, city_name, barangay_code, barangay_name, location_label, latitude, longitude, created_at, categories(name, slug, icon_key), listing_images(id, public_url, storage_path, alt_text, sort_order)",
     )
     .eq("id", id)
     .single();
@@ -511,7 +514,7 @@ export async function getListingDetail(id: string): Promise<ListingDetail | null
     condition: listing.condition,
     category_name: category?.name,
     category_slug: category?.slug,
-    category_emoji: category?.emoji,
+    category_icon_key: category?.icon_key,
     region_name: listing.region_name,
     province_name: listing.province_name,
     city_name: listing.city_name,
@@ -642,7 +645,7 @@ export async function getDashboardListings(): Promise<DashboardListing[]> {
   const { data } = await supabase
     .from("listings")
     .select(
-      "id, title, status, condition, created_at, location_label, city_name, province_name, city, categories(name, emoji), listing_images(public_url, sort_order)",
+      "id, title, status, condition, created_at, location_label, city_name, province_name, city, categories(name, icon_key), listing_images(public_url, sort_order)",
     )
     .eq("owner_id", currentUser.id)
     .order("created_at", { ascending: false });
@@ -670,7 +673,7 @@ export async function getDashboardListings(): Promise<DashboardListing[]> {
       status: listing.status,
       condition: conditionLabel(listing.condition),
       category: category?.name ?? "Other",
-      emoji: category?.emoji ?? "📦",
+      iconKey: (category?.icon_key ?? "box") as CategoryIconKey,
       imageUrl: firstImage?.public_url ?? null,
       createdAt: listing.created_at,
       pendingOfferCount: pendingOfferCounts.get(listing.id) ?? 0,
@@ -878,7 +881,7 @@ export async function getConversationThread(conversationId: string): Promise<Con
     supabase.from("conversation_participants").select("user_id").eq("conversation_id", conversationId),
     supabase
       .from("messages")
-      .select("id, sender_id, body, created_at")
+      .select("id, sender_id, body, created_at, delivered_at, seen_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true }),
   ]);
@@ -887,11 +890,7 @@ export async function getConversationThread(conversationId: string): Promise<Con
     return null;
   }
 
-  await supabase
-    .from("conversation_participants")
-    .update({ last_read_at: new Date().toISOString() })
-    .eq("conversation_id", conversationId)
-    .eq("user_id", currentUser.id);
+  await supabase.rpc("mark_conversation_seen", { p_conversation_id: conversationId });
 
   const otherId = participants?.find((participant) => participant.user_id !== currentUser.id)?.user_id;
   const participantIds = Array.from(new Set([currentUser.id, otherId].filter(Boolean))) as string[];
@@ -935,6 +934,8 @@ export async function getConversationThread(conversationId: string): Promise<Con
         senderInitials: sender?.initials ?? "SS",
         senderAvatarUrl: sender?.avatar_url ?? null,
         createdAt: message.created_at,
+        deliveredAt: message.delivered_at,
+        seenAt: message.seen_at,
         isOwn: message.sender_id === currentUser.id,
       };
     }),

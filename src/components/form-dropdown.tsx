@@ -7,6 +7,7 @@ import { useClickOutside } from "@/lib/hooks";
 export type DropdownOption = {
   value: string | number;
   label: string;
+  icon?: ReactNode;
 };
 
 type FormDropdownProps = {
@@ -123,7 +124,10 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
         onKeyDown={handleKeyDown}
         className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-1.5 text-sm font-medium text-foreground focus:outline-none"
       >
-        <span className="truncate">{selected.label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          {selected.icon}
+          <span className="truncate">{selected.label}</span>
+        </span>
         <IconChevronDown
           className={`h-3.5 w-3.5 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
         />
@@ -153,7 +157,8 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
                 }`}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-green" : highlighted ? "bg-green/40" : ""}`} />
-                {option.label}
+                {option.icon}
+                <span className="truncate">{option.label}</span>
               </button>
             );
           })}
