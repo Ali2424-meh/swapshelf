@@ -115,6 +115,7 @@ export type ConversationMessage = {
 
 export type ConversationThreadData = {
   id: string;
+  currentUserId: string;
   otherPartyName: string;
   otherPartyInitials: string;
   otherPartyAvatarUrl: string | null;
@@ -915,6 +916,7 @@ export async function getConversationThread(conversationId: string): Promise<Con
 
   return {
     id: conversationId,
+    currentUserId: currentUser.id,
     otherPartyName: otherParty?.display_name ?? "SwapShelf member",
     otherPartyInitials: otherParty?.initials ?? "SS",
     otherPartyAvatarUrl: otherParty?.avatar_url ?? null,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createReportAction, toggleSavedListingAction } from "@/app/auth/actions";
 import { IconHeart, IconMapPin, IconStar } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import type { Listing } from "@/lib/constants";
 
 const CONDITION_COLORS: Record<string, string> = {
@@ -28,8 +29,8 @@ export function ListingCard({ listing, returnTo = "/browse" }: { listing: Listin
           <form action={toggleSavedListingAction} className="absolute right-3 top-3">
             <input type="hidden" name="listing_id" value={listing.id} />
             <input type="hidden" name="next" value={returnTo} />
-            <button
-              type="submit"
+            <PendingSubmitButton
+              pendingChildren={<span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted border-t-transparent" />}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm hover:bg-white"
               aria-label={listing.isSaved ? "Remove from wishlist" : "Add to wishlist"}
             >
@@ -37,7 +38,7 @@ export function ListingCard({ listing, returnTo = "/browse" }: { listing: Listin
                 className={`h-4 w-4 ${listing.isSaved ? "fill-red-500 text-red-500" : "text-muted"}`}
                 filled={listing.isSaved}
               />
-            </button>
+            </PendingSubmitButton>
           </form>
         )}
 
@@ -117,9 +118,12 @@ export function ListingCard({ listing, returnTo = "/browse" }: { listing: Listin
             <input type="hidden" name="target_id" value={listing.id} />
             <input type="hidden" name="reason" value="Listing concern" />
             <input type="hidden" name="next" value={returnTo} />
-            <button type="submit" className="text-xs font-medium text-muted hover:text-red-600">
+            <PendingSubmitButton
+              pendingChildren="Reporting..."
+              className="text-xs font-medium text-muted hover:text-red-600"
+            >
               Report listing
-            </button>
+            </PendingSubmitButton>
           </form>
         )}
       </div>

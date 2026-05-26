@@ -26,7 +26,7 @@ const resetPasswordSchema = z
   })
   .refine((data) => data.password === data.confirm_password, {
     path: ["confirm_password"],
-    error: "Passwords do not match.",
+    message: "Passwords do not match.",
   });
 
 const signupSchema = z.object({
@@ -85,6 +85,16 @@ const maxOfferPhotoSize = 10 * 1024 * 1024;
 const allowedOfferPhotoTypes = allowedListingPhotoTypes;
 const maxAvatarSize = 5 * 1024 * 1024;
 const allowedAvatarTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+export type SendMessageState = {
+  error?: string;
+  message?: {
+    id: string;
+    body: string;
+    senderId: string;
+    createdAt: string;
+  };
+};
 
 function configuredOrRedirect(path = "/login") {
   if (!hasSupabaseEnv()) {
@@ -833,7 +843,7 @@ export async function createReportAction(formData: FormData) {
 
 export async function updateOfferStatusAction(formData: FormData) {
   configuredOrRedirect("/dashboard/offers");
-  const currentUser = await requireUser();
+  await requireUser();
   const offerId = uuidSchema.safeParse(value(formData, "offer_id"));
   const status = z.enum(["accepted", "declined", "cancelled", "completed"]).safeParse(value(formData, "status"));
 
@@ -842,91 +852,21 @@ export async function updateOfferStatusAction(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { data: offer } = await supabase
-    .from("swap_offers")
-    .select("id, sender_id, receiver_id, listing_id, status")
-    .eq("id", offerId.data)
-    .single();
-
-  if (!offer || (offer.sender_id !== currentUser.id && offer.receiver_id !== currentUser.id)) {
-    redirect("/dashboard/offers?error=You cannot update that offer.");
-  }
-
-  const isSender = offer.sender_id === currentUser.id;
-  const isReceiver = offer.receiver_id === currentUser.id;
-  const canAcceptOrDecline = isReceiver && offer.status === "pending" && ["accepted", "declined"].includes(status.data);
-  const canCancel = isSender && offer.status === "pending" && status.data === "cancelled";
-  const canComplete = isReceiver && offer.status === "accepted" && status.data === "completed";
-
-  if (!canAcceptOrDecline && !canCancel && !canComplete) {
-    redirect("/dashboard/offers?error=That offer cannot be updated this way.");
-  }
-
-  const { error: updateError } = await supabase
-    .from("swap_offers")
-    .update({ status: status.data })
-    .eq("id", offer.id);
-
-  if (updateError) {
-    redirect("/dashboard/offers?error=Could not update that offer.");
-  }
-
-  let acceptedConversationId: string | null = null;
-
-  if (status.data === "accepted") {
-    const { data: existingConversation } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("offer_id", offer.id)
-      .maybeSingle();
-
-    const { data: conversation } = existingConversation
-      ? { data: existingConversation }
-      : await supabase
-          .from("conversations")
-          .insert({ offer_id: offer.id })
-          .select("id")
-          .single();
-
-    if (conversation) {
-      acceptedConversationId = conversation.id;
-
-      // Insert participants individually — batch upsert can silently fail
-      // if any single row triggers an RLS violation, causing both to fail.
-      await Promise.all([
-        supabase.from("conversation_participants").upsert(
-          { conversation_id: conversation.id, user_id: offer.receiver_id },
-          { ignoreDuplicates: true, onConflict: "conversation_id,user_id" },
-        ),
-        supabase.from("conversation_participants").upsert(
-          { conversation_id: conversation.id, user_id: offer.sender_id },
-          { ignoreDuplicates: true, onConflict: "conversation_id,user_id" },
-        ),
-      ]);
-    }
-  }
-
-  // Auto-archive both listings when a swap is completed
-  if (status.data === "completed") {
-    const { data: completedOffer } = await supabase
-      .from("swap_offers")
-      .select("listing_id, offered_listing_id")
-      .eq("id", offer.id)
-      .single();
-
-    if (completedOffer) {
-      const listingIds = [completedOffer.listing_id, completedOffer.offered_listing_id].filter(Boolean);
-      if (listingIds.length) {
-        await supabase.from("listings").update({ status: "swapped" }).in("id", listingIds);
-      }
-    }
-  }
+  const { data: conversationId, error } = await supabase.rpc("transition_swap_offer", {
+    p_offer_id: offerId.data,
+    p_next_status: status.data,
+  });
 
   revalidatePath("/", "layout");
-  if (acceptedConversationId) {
-    redirect(`/dashboard/messages/${acceptedConversationId}`);
+  if (error) {
+    redirect(`/dashboard/offers?error=${encodeURIComponent(error.message || "Could not update that offer.")}`);
+  }
+
+  if (status.data === "accepted" && typeof conversationId === "string") {
+    redirect(`/dashboard/messages/${conversationId}`);
   }
   redirect("/dashboard/offers");
+
 }
 
 export async function sendMessageAction(formData: FormData) {
@@ -970,6 +910,68 @@ export async function sendMessageAction(formData: FormData) {
 
   revalidatePath("/dashboard/messages");
   redirect(`/dashboard/messages/${conversationId.data}`);
+}
+
+export async function sendMessageInlineAction(
+  _state: SendMessageState,
+  formData: FormData,
+): Promise<SendMessageState> {
+  configuredOrRedirect("/dashboard/messages");
+  const currentUser = await requireUser();
+  const conversationId = uuidSchema.safeParse(value(formData, "conversation_id"));
+  const body = z.string().trim().min(1).max(2000).safeParse(value(formData, "body"));
+
+  if (!conversationId.success || !body.success) {
+    return { error: "Write a message before sending." };
+  }
+
+  const supabase = await createClient();
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("id, offer_id, swap_offers(status)")
+    .eq("id", conversationId.data)
+    .single();
+  const offer = Array.isArray(conversation?.swap_offers) ? conversation?.swap_offers[0] : conversation?.swap_offers;
+  const { data: participant } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("conversation_id", conversationId.data)
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (!conversation || !participant || !offer || !["accepted", "completed"].includes(offer.status)) {
+    return { error: "This chat is not available." };
+  }
+
+  const { data: message, error } = await supabase
+    .from("messages")
+    .insert({
+      conversation_id: conversationId.data,
+      sender_id: currentUser.id,
+      body: body.data,
+    })
+    .select("id, body, sender_id, created_at")
+    .single();
+
+  if (error || !message) {
+    return { error: error?.message || "Message could not be sent." };
+  }
+
+  await supabase
+    .from("conversation_participants")
+    .update({ last_read_at: new Date().toISOString() })
+    .eq("conversation_id", conversationId.data)
+    .eq("user_id", currentUser.id);
+
+  revalidatePath("/dashboard/messages");
+  return {
+    message: {
+      id: message.id,
+      body: message.body,
+      senderId: message.sender_id,
+      createdAt: message.created_at,
+    },
+  };
 }
 
 export async function markConversationReadAction(formData: FormData) {

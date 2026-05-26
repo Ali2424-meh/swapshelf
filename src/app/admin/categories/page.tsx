@@ -1,5 +1,6 @@
 import { createCategoryAction, updateCategoryAction } from "@/app/auth/actions";
 import { IconPlus } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { getCategories } from "@/lib/data";
 
 export default async function AdminCategoriesPage() {
@@ -31,10 +32,13 @@ export default async function AdminCategoriesPage() {
           placeholder="Order"
           className="w-28 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-green focus:outline-none"
         />
-        <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-green px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-dark">
+        <PendingSubmitButton
+          pendingChildren="Adding..."
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-green px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-dark"
+        >
           <IconPlus className="h-4 w-4" />
           Add category
-        </button>
+        </PendingSubmitButton>
       </form>
 
       <div className="overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-border">
@@ -67,9 +71,12 @@ export default async function AdminCategoriesPage() {
                     <form action={updateCategoryAction} className="inline-flex">
                       <input type="hidden" name="category_id" value={id} />
                       <input type="hidden" name="active" value={active ? "false" : "true"} />
-                      <button className="text-xs font-medium text-muted hover:text-foreground">
+                      <PendingSubmitButton
+                        pendingChildren={active ? "Hiding..." : "Activating..."}
+                        className="text-xs font-medium text-muted hover:text-foreground"
+                      >
                         {active ? "Hide" : "Activate"}
-                      </button>
+                      </PendingSubmitButton>
                     </form>
                   )}
                 </td>

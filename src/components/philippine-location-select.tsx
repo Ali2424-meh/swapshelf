@@ -6,7 +6,7 @@ import {
   getMunicipalitiesByProvince,
   getProvincesByRegion,
 } from "@aivangogh/ph-address";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { IconChevronDown, IconMapPin } from "@/components/icons";
 import type { PhilippineLocation } from "@/lib/location";
 
@@ -41,6 +41,7 @@ function SelectField({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
   const filteredOptions = query.trim()
@@ -48,6 +49,73 @@ function SelectField({
     : options;
 
   const selectedOption = options.find((o) => o.code === value);
+  const menuOptions = [{ code: "", name: "None" }, ...filteredOptions];
+
+  function selectedMenuIndex() {
+    const index = menuOptions.findIndex((option) => option.code === value);
+    return Math.max(index, 0);
+  }
+
+  function openMenu() {
+    setHighlightedIndex(selectedMenuIndex());
+    setOpen(true);
+  }
+
+  function chooseOption(code: string) {
+    onChange(code);
+    setQuery("");
+    setOpen(false);
+  }
+
+  function moveHighlight(delta: number) {
+    setHighlightedIndex((current) => {
+      const next = current + delta;
+      if (next < 0) return menuOptions.length - 1;
+      if (next >= menuOptions.length) return 0;
+      return next;
+    });
+  }
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!open) {
+        openMenu();
+      } else {
+        moveHighlight(1);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!open) {
+        openMenu();
+      } else {
+        moveHighlight(-1);
+      }
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setHighlightedIndex(0);
+      setOpen(true);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setHighlightedIndex(menuOptions.length - 1);
+      setOpen(true);
+      return;
+    }
+
+    if ((event.key === "Enter" || event.key === " ") && open) {
+      event.preventDefault();
+      chooseOption(menuOptions[highlightedIndex]?.code ?? "");
+    }
+  }
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -81,15 +149,24 @@ function SelectField({
         id={id}
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((c) => !c)}
-        className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm text-foreground shadow-sm transition focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20 disabled:cursor-not-allowed disabled:opacity-60"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={`${id}-listbox`}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={handleKeyDown}
+        className="mt-2 flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm text-foreground shadow-sm transition focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className="truncate">{selectedOption ? optionLabel(selectedOption.name, selectedOption.code) : `Select ${label.toLowerCase()}...`}</span>
         <IconChevronDown className={`h-4 w-4 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+0.5rem)] z-[70] w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg animate-in fade-in zoom-in-95 duration-100 ease-out origin-top">
+        <div
+          id={`${id}-listbox`}
+          role="listbox"
+          aria-labelledby={id}
+          className="absolute left-0 top-[calc(100%+0.5rem)] z-[70] w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg animate-in fade-in zoom-in-95 duration-100 ease-out origin-top"
+        >
           <div className="border-b border-border p-2">
             <input
               type="search"
@@ -102,31 +179,33 @@ function SelectField({
           </div>
           <div className="max-h-60 overflow-y-auto py-1">
             <button
+              id={`${id}-option-0`}
               type="button"
-              onClick={() => {
-                onChange("");
-                setQuery("");
-                setOpen(false);
-              }}
-              className={`flex w-full items-center px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3 ${
-                !value ? "font-semibold text-green" : "text-foreground font-medium"
+              role="option"
+              aria-selected={!value}
+              onMouseEnter={() => setHighlightedIndex(0)}
+              onClick={() => chooseOption("")}
+              className={`flex w-full cursor-pointer items-center px-4 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-green/10 hover:text-green focus-visible:bg-green/10 focus-visible:text-green ${
+                !value || highlightedIndex === 0 ? "bg-green-light font-semibold text-green" : "text-foreground font-medium"
               }`}
             >
               None
             </button>
             {filteredOptions.map((option) => {
               const active = value === option.code;
+              const optionIndex = menuOptions.findIndex((item) => item.code === option.code);
+              const highlighted = highlightedIndex === optionIndex;
               return (
                 <button
                   key={option.code}
+                  id={`${id}-option-${optionIndex}`}
                   type="button"
-                  onClick={() => {
-                    onChange(option.code);
-                    setQuery("");
-                    setOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-green/5 hover:text-green hover:pl-5 hover:pr-3 ${
-                    active ? "font-semibold text-green" : "text-foreground font-medium"
+                  role="option"
+                  aria-selected={active}
+                  onMouseEnter={() => setHighlightedIndex(optionIndex)}
+                  onClick={() => chooseOption(option.code)}
+                  className={`flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors duration-150 hover:bg-green/10 hover:text-green focus-visible:bg-green/10 focus-visible:text-green ${
+                    active || highlighted ? "bg-green-light font-semibold text-green" : "text-foreground font-medium"
                   }`}
                 >
                   {optionLabel(option.name, option.code)}

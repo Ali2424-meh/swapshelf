@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createListingAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 import { PhotoUpload } from "@/components/photo-upload";
 import { requireUser } from "@/lib/auth";
@@ -144,9 +145,12 @@ export default async function NewListingPage({ searchParams }: NewListingPagePro
           >
             Cancel
           </Link>
-          <button type="submit" className="flex-1 rounded-xl bg-green px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-dark">
+          <PendingSubmitButton
+            pendingChildren="Publishing..."
+            className="flex-1 rounded-xl bg-green px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-dark"
+          >
             Publish listing
-          </button>
+          </PendingSubmitButton>
         </div>
       </form>
     </div>

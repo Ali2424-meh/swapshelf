@@ -1,5 +1,6 @@
 import { updateUserStatusAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { getAdminUsers } from "@/lib/data";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -60,9 +61,12 @@ export default async function AdminUsersPage() {
                       options={USER_STATUS_OPTIONS}
                       className="relative flex min-w-[104px] items-center rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground transition focus-within:border-green focus-within:ring-1 focus-within:ring-green/20"
                     />
-                    <button className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark">
+                    <PendingSubmitButton
+                      pendingChildren="Saving..."
+                      className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark"
+                    >
                       Save
-                    </button>
+                    </PendingSubmitButton>
                   </form>
                 </td>
               </tr>

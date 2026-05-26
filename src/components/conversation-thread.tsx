@@ -1,5 +1,6 @@
 import { sendMessageAction } from "@/app/auth/actions";
 import { IconMessageCircle, IconPackageOpen } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import type { ConversationThreadData } from "@/lib/data";
 
 export function ConversationThread({ thread }: { thread: ConversationThreadData | null }) {
@@ -76,12 +77,13 @@ export function ConversationThread({ thread }: { thread: ConversationThreadData 
             placeholder={thread.canSend ? "Write a message..." : "This conversation is read-only"}
             className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           />
-          <button
+          <PendingSubmitButton
             disabled={!thread.canSend}
+            pendingChildren="Sending..."
             className="rounded-xl bg-green px-5 py-3 text-sm font-semibold text-white hover:bg-green-dark disabled:cursor-not-allowed disabled:opacity-60"
           >
             Send
-          </button>
+          </PendingSubmitButton>
         </div>
       </form>
     </section>

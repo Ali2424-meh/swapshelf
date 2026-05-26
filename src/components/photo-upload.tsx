@@ -95,7 +95,7 @@ export function PhotoUpload({ maxFiles = 6, name = "photos" }: PhotoUploadProps)
               <button
                 type="button"
                 onClick={() => removePhoto(photo.id)}
-                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100 hover:bg-black"
+                className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white shadow-sm transition hover:bg-black sm:h-5 sm:w-5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                 aria-label="Remove photo"
               >
                 <IconX className="h-3 w-3" strokeWidth={2.5} />

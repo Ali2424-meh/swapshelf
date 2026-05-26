@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { loginAction } from "@/app/auth/actions";
 import { Logo } from "@/components/logo";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -56,7 +57,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   <label htmlFor="password" className="block text-sm font-semibold text-foreground">
                     Password
                   </label>
-                  <Link href="#" className="text-xs font-medium text-green hover:underline">
+                  <Link href="/forgot-password" className="text-xs font-medium text-green hover:underline">
                     Forgot password?
                   </Link>
                 </div>
@@ -70,12 +71,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
                 />
               </div>
-              <button
-                type="submit"
+              <PendingSubmitButton
+                pendingChildren="Signing in..."
                 className="w-full rounded-xl bg-green py-3.5 font-semibold text-white shadow-sm transition hover:bg-green-dark"
               >
                 Sign in
-              </button>
+              </PendingSubmitButton>
             </form>
             <p className="mt-6 text-center text-sm text-muted">
               Don&apos;t have an account?{" "}

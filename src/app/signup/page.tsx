@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signupAction } from "@/app/auth/actions";
 import { Logo } from "@/components/logo";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 
 type SignUpPageProps = {
@@ -83,21 +84,21 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
                 <input type="checkbox" required className="mt-0.5 h-4 w-4 rounded border-border accent-green" />
                 <span className="text-sm text-muted">
                   I agree to the{" "}
-                  <Link href="#" className="text-green hover:underline">
+                  <Link href="/terms" className="text-green hover:underline">
                     Terms of Service
                   </Link>{" "}
                   and{" "}
-                  <Link href="#" className="text-green hover:underline">
+                  <Link href="/privacy" className="text-green hover:underline">
                     Privacy Policy
                   </Link>
                 </span>
               </label>
-              <button
-                type="submit"
+              <PendingSubmitButton
+                pendingChildren="Creating account..."
                 className="w-full rounded-xl bg-green py-3.5 font-semibold text-white shadow-sm transition hover:bg-green-dark"
               >
                 Create account
-              </button>
+              </PendingSubmitButton>
             </form>
             <p className="mt-6 text-center text-sm text-muted">
               Already have an account?{" "}

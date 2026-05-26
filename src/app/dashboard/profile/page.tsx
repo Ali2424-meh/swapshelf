@@ -2,6 +2,7 @@ import Link from "next/link";
 import { updateProfileAction } from "@/app/auth/actions";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { IconArrowLeftRight, IconCheck, IconShield, IconStar } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 import { getProfileData } from "@/lib/data";
 
@@ -68,7 +69,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             )}
           </div>
         </div>
-        <p className="mt-3 text-xs text-muted">Hover over your photo to change it. PNG, JPG, or WEBP. Max 5 MB.</p>
+        <p className="mt-3 text-xs text-muted">Tap or hover over your photo to change it. PNG, JPG, or WEBP. Max 5 MB.</p>
       </div>
 
       <form action={updateProfileAction} className="rounded-2xl bg-card p-6 shadow-sm ring-1 ring-border">
@@ -108,12 +109,12 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           </div>
         </div>
 
-        <button
-          type="submit"
+        <PendingSubmitButton
+          pendingChildren="Saving..."
           className="mt-6 rounded-xl bg-green px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-dark"
         >
           Save changes
-        </button>
+        </PendingSubmitButton>
       </form>
 
       <div className="rounded-2xl bg-card p-6 shadow-sm ring-1 ring-border">

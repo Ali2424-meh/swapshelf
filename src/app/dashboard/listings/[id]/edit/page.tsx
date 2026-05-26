@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { archiveListingAction, updateListingAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
 import { IconArchive, IconEye } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 import { PhotoUpload } from "@/components/photo-upload";
 import { getCategories, getEditableListing } from "@/lib/data";
@@ -193,18 +194,24 @@ export default async function EditListingPage({ params, searchParams }: EditList
           >
             Back to listings
           </Link>
-          <button type="submit" className="flex-1 rounded-xl bg-green px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-dark">
+          <PendingSubmitButton
+            pendingChildren="Saving..."
+            className="flex-1 rounded-xl bg-green px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-dark"
+          >
             Save changes
-          </button>
+          </PendingSubmitButton>
         </div>
       </form>
 
       <form action={archiveListingAction} className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border">
         <input type="hidden" name="listing_id" value={listing.id} />
-        <button className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-gray-50">
+        <PendingSubmitButton
+          pendingChildren={listing.status === "archived" ? "Reactivating..." : "Archiving..."}
+          className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-gray-50"
+        >
           <IconArchive className="h-4 w-4" strokeWidth={1.75} />
           {listing.status === "archived" ? "Reactivate listing" : "Archive listing"}
-        </button>
+        </PendingSubmitButton>
       </form>
     </div>
   );

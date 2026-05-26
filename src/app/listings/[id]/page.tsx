@@ -4,6 +4,7 @@ import { createOfferAction, createReportAction, toggleSavedListingAction } from 
 import { AppShell } from "@/components/app-shell";
 import { FormDropdown } from "@/components/form-dropdown";
 import { IconArrowLeftRight, IconHeart, IconMapPin, IconPackageOpen, IconShield, IconStar } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { PhotoUpload } from "@/components/photo-upload";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -203,10 +204,13 @@ export default async function ListingDetailPage({ params, searchParams }: Listin
                       className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20"
                     />
                     <PhotoUpload maxFiles={4} name="offer_photos" />
-                    <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-dark">
+                    <PendingSubmitButton
+                      pendingChildren="Sending..."
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-dark"
+                    >
                       <IconArrowLeftRight className="h-4 w-4" />
                       Send offer
-                    </button>
+                    </PendingSubmitButton>
                   </form>
                 )}
               </section>
@@ -217,19 +221,25 @@ export default async function ListingDetailPage({ params, searchParams }: Listin
                 <form action={toggleSavedListingAction}>
                   <input type="hidden" name="listing_id" value={listing.id} />
                   <input type="hidden" name="next" value={returnTo} />
-                  <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-gray-50">
+                  <PendingSubmitButton
+                    pendingChildren={listing.isSaved ? "Removing..." : "Saving..."}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-gray-50"
+                  >
                     <IconHeart className={`h-4 w-4 ${listing.isSaved ? "fill-red-500 text-red-500" : ""}`} filled={listing.isSaved} />
                     {listing.isSaved ? "Saved" : "Save listing"}
-                  </button>
+                  </PendingSubmitButton>
                 </form>
                 <form action={createReportAction} className="mt-3">
                   <input type="hidden" name="target_type" value="listing" />
                   <input type="hidden" name="target_id" value={listing.id} />
                   <input type="hidden" name="reason" value="Listing concern" />
                   <input type="hidden" name="next" value={returnTo} />
-                  <button className="w-full text-center text-xs font-medium text-muted hover:text-red-600">
+                  <PendingSubmitButton
+                    pendingChildren="Reporting..."
+                    className="w-full text-center text-xs font-medium text-muted hover:text-red-600"
+                  >
                     Report listing
-                  </button>
+                  </PendingSubmitButton>
                 </form>
               </section>
             )}

@@ -16,6 +16,7 @@ import {
   IconUser,
   IconX,
 } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 
 const NAV_ITEMS = [
   { href: "/dashboard",          label: "Overview",        icon: IconLayoutDashboard },
@@ -40,11 +41,6 @@ export function MobileSidebarTrigger(props: MobileSidebarProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const overlayRef = useRef<HTMLDivElement>(null);
-
-  // Close on route change
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -145,6 +141,7 @@ export function MobileSidebarTrigger(props: MobileSidebarProps) {
                   <Link
                     key={href}
                     href={href}
+                    onClick={() => setOpen(false)}
                     className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium ${
                       active
                         ? "bg-green text-white shadow-sm"
@@ -167,6 +164,7 @@ export function MobileSidebarTrigger(props: MobileSidebarProps) {
               <div className="pt-3">
                 <Link
                   href="/dashboard/listings/new"
+                  onClick={() => setOpen(false)}
                   className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-green/30 bg-green-light px-4 py-2.5 text-[13px] font-semibold text-green hover:border-green hover:bg-green hover:text-white"
                 >
                   <IconPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -178,13 +176,13 @@ export function MobileSidebarTrigger(props: MobileSidebarProps) {
             {/* Footer */}
             <div className="border-t border-border px-3 py-3">
               <form action={logoutAction}>
-                <button
-                  type="submit"
+                <PendingSubmitButton
+                  pendingChildren="Logging out..."
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-muted hover:bg-red-50 hover:text-red-600"
                 >
                   <IconLogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
                   Log Out
-                </button>
+                </PendingSubmitButton>
               </form>
             </div>
           </aside>

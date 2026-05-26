@@ -14,17 +14,17 @@ const FOOTER_LINKS = [
   {
     heading: "Support",
     links: [
-      { label: "FAQ",             href: "#" },
-      { label: "Safety tips",     href: "#" },
-      { label: "Contact us",      href: "#" },
+      { label: "FAQ",             href: "/faq" },
+      { label: "Safety tips",     href: "/safety" },
+      { label: "Contact us",      href: "/contact" },
     ],
   },
   {
     heading: "Legal",
     links: [
-      { label: "Privacy policy",  href: "#" },
-      { label: "Terms of service",href: "#" },
-      { label: "Cookie policy",   href: "#" },
+      { label: "Privacy policy",  href: "/privacy" },
+      { label: "Terms of service",href: "/terms" },
+      { label: "Cookie policy",   href: "/cookies" },
     ],
   },
 ];

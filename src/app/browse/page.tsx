@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { FormDropdown } from "@/components/form-dropdown";
 import { IconMapPin, IconSearch } from "@/components/icons";
 import { ListingCard } from "@/components/listing-card";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { PhilippineLocationSelect } from "@/components/philippine-location-select";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -136,12 +137,12 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
                 className={dropdownClass}
               />
 
-              <button
-                type="submit"
+              <PendingSubmitButton
+                pendingChildren="Applying..."
                 className="rounded-xl bg-green px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-dark"
               >
                 Apply
-              </button>
+              </PendingSubmitButton>
 
               {(params?.q || params?.category || params?.region_code || params?.area_scope || params?.sort) && (
                 <Link

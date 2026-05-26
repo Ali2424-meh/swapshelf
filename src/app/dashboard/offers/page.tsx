@@ -2,6 +2,7 @@ import Link from "next/link";
 import { updateOfferStatusAction } from "@/app/auth/actions";
 import { Avatar } from "@/components/avatar";
 import { IconArrowLeftRight } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { getSwapOffers } from "@/lib/data";
 
 type SwapOffersPageProps = {
@@ -158,16 +159,22 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
             <form action={updateOfferStatusAction}>
               <input type="hidden" name="offer_id" value={offer.id} />
               <input type="hidden" name="status" value="accepted" />
-              <button className="rounded-lg bg-green px-4 py-2 text-sm font-semibold text-white hover:bg-green-dark">
+              <PendingSubmitButton
+                pendingChildren="Accepting..."
+                className="rounded-lg bg-green px-4 py-2 text-sm font-semibold text-white hover:bg-green-dark"
+              >
                 Accept
-              </button>
+              </PendingSubmitButton>
             </form>
             <form action={updateOfferStatusAction}>
               <input type="hidden" name="offer_id" value={offer.id} />
               <input type="hidden" name="status" value="declined" />
-              <button className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-50">
+              <PendingSubmitButton
+                pendingChildren="Declining..."
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-50"
+              >
                 Decline
-              </button>
+              </PendingSubmitButton>
             </form>
           </>
         )}
@@ -175,9 +182,12 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
           <form action={updateOfferStatusAction}>
             <input type="hidden" name="offer_id" value={offer.id} />
             <input type="hidden" name="status" value="cancelled" />
-            <button className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-50">
+            <PendingSubmitButton
+              pendingChildren="Cancelling..."
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-50"
+            >
               Cancel offer
-            </button>
+            </PendingSubmitButton>
           </form>
         )}
         {offer.status === "Accepted" && offer.direction === "incoming" && (
@@ -191,9 +201,12 @@ function OfferCard({ offer }: { offer: Awaited<ReturnType<typeof getSwapOffers>>
             <form action={updateOfferStatusAction}>
               <input type="hidden" name="offer_id" value={offer.id} />
               <input type="hidden" name="status" value="completed" />
-              <button className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-50">
+              <PendingSubmitButton
+                pendingChildren="Completing..."
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-gray-50"
+              >
                 Mark completed
-              </button>
+              </PendingSubmitButton>
             </form>
           </>
         )}

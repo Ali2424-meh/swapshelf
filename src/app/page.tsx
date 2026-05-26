@@ -4,6 +4,7 @@ import { ListingCard } from "@/components/listing-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { IconPackageOpen, IconSearch } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { RADIUS_OPTIONS } from "@/lib/constants";
 import { RadiusSelect } from "@/components/radius-select";
 import { getCategories, getPublicListings, getPublicStats } from "@/lib/data";
@@ -59,12 +60,12 @@ export default async function HomePage() {
               </div>
               <div className="hidden h-8 w-px bg-border sm:block" />
               <RadiusSelect defaultValue={RADIUS_OPTIONS[1].value} />
-              <button
-                type="submit"
+              <PendingSubmitButton
+                pendingChildren="Searching..."
                 className="m-1.5 rounded-xl bg-orange px-7 py-3 font-semibold text-white transition hover:bg-orange-hover"
               >
                 Search
-              </button>
+              </PendingSubmitButton>
             </form>
           </div>
         </section>

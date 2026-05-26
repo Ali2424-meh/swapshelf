@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { logoutAction } from "@/app/auth/actions";
 import { Avatar } from "@/components/avatar";
 import { IconChevronDown, IconLogOut, IconShield } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { DASHBOARD_NAV_ITEMS } from "@/lib/constants";
 import { useClickOutside } from "@/lib/hooks";
 
@@ -81,14 +82,14 @@ export function UserMenu({ displayName, email, initials, avatarUrl, role, areaLa
 
           <div className="border-t border-border py-1">
             <form action={logoutAction}>
-              <button
-                type="submit"
+              <PendingSubmitButton
+                pendingChildren="Logging out..."
                 role="menuitem"
                 className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
               >
                 <IconLogOut className="h-4 w-4" strokeWidth={1.75} />
                 Log out
-              </button>
+              </PendingSubmitButton>
             </form>
           </div>
         </div>

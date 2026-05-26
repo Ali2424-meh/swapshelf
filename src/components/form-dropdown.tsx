@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { IconChevronDown } from "@/components/icons";
 import { useClickOutside } from "@/lib/hooks";
 
@@ -19,18 +19,88 @@ type FormDropdownProps = {
 };
 
 export function FormDropdown({ id, name, options, defaultValue, icon, className }: FormDropdownProps) {
+  const generatedId = useId();
+  const buttonId = id ?? `${name}-${generatedId}`;
+  const listboxId = `${buttonId}-listbox`;
   const initialValue = defaultValue === undefined ? undefined : String(defaultValue);
-  const [selectedValue, setSelectedValue] = useState(
-    () => initialValue ?? String(options[0]?.value ?? ""),
+  const [selectedValue, setSelectedValue] = useState(() => initialValue ?? String(options[0]?.value ?? ""));
+  const selectedIndex = Math.max(
+    options.findIndex((option) => String(option.value) === selectedValue),
+    0,
   );
+  const [highlightedIndex, setHighlightedIndex] = useState(selectedIndex);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, close);
-  const selected = options.find((option) => String(option.value) === selectedValue) ?? options[0];
+  const selected = options[selectedIndex];
 
   if (!selected) {
     return null;
+  }
+
+  function openMenu() {
+    setHighlightedIndex(selectedIndex);
+    setOpen(true);
+  }
+
+  function choose(index: number) {
+    const option = options[index];
+    if (!option) return;
+
+    setSelectedValue(String(option.value));
+    setHighlightedIndex(index);
+    setOpen(false);
+  }
+
+  function moveHighlight(delta: number) {
+    setHighlightedIndex((current) => {
+      const next = current + delta;
+      if (next < 0) return options.length - 1;
+      if (next >= options.length) return 0;
+      return next;
+    });
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!open) {
+        openMenu();
+      } else {
+        moveHighlight(1);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!open) {
+        openMenu();
+      } else {
+        moveHighlight(-1);
+      }
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setHighlightedIndex(0);
+      setOpen(true);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      setHighlightedIndex(options.length - 1);
+      setOpen(true);
+      return;
+    }
+
+    if ((event.key === "Enter" || event.key === " ") && open) {
+      event.preventDefault();
+      choose(highlightedIndex);
+    }
   }
 
   return (
@@ -44,11 +114,14 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
       {icon}
       <input type="hidden" name={name} value={selected.value} />
       <button
-        id={id}
+        id={buttonId}
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className="flex min-w-0 flex-1 items-center justify-between gap-1.5 text-sm font-medium text-foreground focus:outline-none"
+        aria-haspopup="listbox"
+        aria-controls={listboxId}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        onKeyDown={handleKeyDown}
+        className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-1.5 text-sm font-medium text-foreground focus:outline-none"
       >
         <span className="truncate">{selected.label}</span>
         <IconChevronDown
@@ -56,23 +129,30 @@ export function FormDropdown({ id, name, options, defaultValue, icon, className 
         />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-[70] mt-2 min-w-full overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100 ease-out origin-top-left">
-          {options.map((option) => {
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-labelledby={buttonId}
+          className="absolute left-0 top-full z-[70] mt-2 min-w-full overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100 ease-out origin-top-left"
+        >
+          {options.map((option, index) => {
             const active = String(selected.value) === String(option.value);
+            const highlighted = highlightedIndex === index;
 
             return (
               <button
                 key={String(option.value)}
+                id={`${listboxId}-${index}`}
                 type="button"
-                onClick={() => {
-                  setSelectedValue(String(option.value));
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-4 py-2.5 text-left text-sm hover:bg-green-light hover:text-green ${
-                  active ? "bg-green-light font-semibold text-green" : "font-medium text-foreground"
+                role="option"
+                aria-selected={active}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                onClick={() => choose(index)}
+                className={`flex w-full cursor-pointer items-center gap-2.5 whitespace-nowrap rounded-lg px-4 py-2.5 text-left text-sm outline-none transition-colors hover:bg-green/10 hover:text-green focus-visible:bg-green/10 focus-visible:text-green ${
+                  active || highlighted ? "bg-green-light font-semibold text-green" : "font-medium text-foreground"
                 }`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-green" : ""}`} />
+                <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-green" : highlighted ? "bg-green/40" : ""}`} />
                 {option.label}
               </button>
             );

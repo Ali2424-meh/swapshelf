@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { archiveListingAction } from "@/app/auth/actions";
 import { IconArchive, IconArrowLeftRight, IconEye, IconPackageOpen, IconPencil, IconPlus } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { getDashboardListings } from "@/lib/data";
 
 type MyListingsPageProps = {
@@ -122,10 +123,13 @@ export default async function MyListingsPage({ searchParams }: MyListingsPagePro
                       </Link>
                       <form action={archiveListingAction}>
                         <input type="hidden" name="listing_id" value={listing.id} />
-                        <button className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground">
+                        <PendingSubmitButton
+                          pendingChildren={listing.status === "archived" ? "Reactivating..." : "Archiving..."}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground"
+                        >
                           <IconArchive className="h-3 w-3" strokeWidth={2} />
                           {listing.status === "archived" ? "Reactivate" : "Archive"}
-                        </button>
+                        </PendingSubmitButton>
                       </form>
                     </div>
                   </td>

@@ -1,5 +1,6 @@
 import { updateReportStatusAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { getAdminReports, getAdminStats } from "@/lib/data";
 
 const REPORT_STATUS_OPTIONS = [
@@ -55,9 +56,12 @@ export default async function AdminReportsPage() {
                       options={REPORT_STATUS_OPTIONS}
                       className="relative flex min-w-[116px] items-center rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground transition focus-within:border-green focus-within:ring-1 focus-within:ring-green/20"
                     />
-                    <button className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark">
+                    <PendingSubmitButton
+                      pendingChildren="Saving..."
+                      className="rounded-lg bg-green px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-dark"
+                    >
                       Save
-                    </button>
+                    </PendingSubmitButton>
                   </form>
                 </td>
               </tr>

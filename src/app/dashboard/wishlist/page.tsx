@@ -2,6 +2,7 @@ import { createWishlistAlertAction } from "@/app/auth/actions";
 import { FormDropdown } from "@/components/form-dropdown";
 import { IconHeart } from "@/components/icons";
 import { ListingCard } from "@/components/listing-card";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { getCategories, getWishlistData } from "@/lib/data";
 
 export default async function WishlistPage() {
@@ -33,7 +34,12 @@ export default async function WishlistPage() {
           options={categoryOptions}
           className="relative flex min-w-[180px] items-center rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground transition focus-within:border-green focus-within:ring-2 focus-within:ring-green/20"
         />
-        <button className="rounded-xl bg-green px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-dark">Create alert</button>
+        <PendingSubmitButton
+          pendingChildren="Creating..."
+          className="rounded-xl bg-green px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-dark"
+        >
+          Create alert
+        </PendingSubmitButton>
       </form>
 
       {wishlist.alerts.length > 0 && (

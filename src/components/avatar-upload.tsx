@@ -45,7 +45,7 @@ export function AvatarUpload({ initials, currentAvatarUrl }: AvatarUploadProps) 
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={submitting}
-          className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-2xl bg-black/50 opacity-0 transition group-hover:opacity-100 disabled:cursor-wait"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-2xl bg-black/50 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 disabled:cursor-wait"
           aria-label="Change profile picture"
         >
           {submitting ? (

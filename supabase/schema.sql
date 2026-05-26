@@ -1451,3 +1451,249 @@ using (
   bucket_id = 'offer-photos'
   and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin())
 );
+
+-- Blocker fix pass: atomic offer transitions, safer conversation visibility, and realtime messages.
+create or replace function public.transition_swap_offer(
+  p_offer_id uuid,
+  p_next_status public.offer_status
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_id uuid := auth.uid();
+  offer_row public.swap_offers%rowtype;
+  listing_ids uuid[];
+  active_listing_count integer;
+  conversation_id uuid;
+  actor_is_admin boolean := coalesce(public.is_admin(), false);
+begin
+  if actor_id is null then
+    raise exception 'Authentication required.';
+  end if;
+
+  if not actor_is_admin and coalesce(public.current_user_status(), 'banned'::public.profile_status) <> 'active' then
+    raise exception 'Your account cannot update offers.';
+  end if;
+
+  select *
+    into offer_row
+  from public.swap_offers
+  where id = p_offer_id
+  for update;
+
+  if not found then
+    raise exception 'Offer not found.';
+  end if;
+
+  if p_next_status = 'accepted' then
+    if not actor_is_admin and offer_row.receiver_id <> actor_id then
+      raise exception 'Only the receiver can accept this offer.';
+    end if;
+
+    if offer_row.status <> 'pending' then
+      raise exception 'Only pending offers can be accepted.';
+    end if;
+
+    if offer_row.offered_listing_id is null then
+      raise exception 'This offer has no offered listing.';
+    end if;
+
+    listing_ids := array_remove(array[offer_row.listing_id, offer_row.offered_listing_id], null);
+
+    perform 1
+    from public.listings
+    where id = any(listing_ids)
+    for update;
+
+    select count(*)::integer
+      into active_listing_count
+    from public.listings
+    where id = any(listing_ids)
+      and status = 'active';
+
+    if active_listing_count <> array_length(listing_ids, 1) then
+      raise exception 'One of these listings is no longer available.';
+    end if;
+
+    update public.swap_offers
+    set status = 'accepted',
+        updated_at = now()
+    where id = offer_row.id;
+
+    update public.listings
+    set status = 'pending',
+        updated_at = now()
+    where id = any(listing_ids);
+
+    update public.swap_offers
+    set status = 'declined',
+        updated_at = now()
+    where id <> offer_row.id
+      and status = 'pending'
+      and (
+        listing_id = any(listing_ids)
+        or offered_listing_id = any(listing_ids)
+      );
+
+    insert into public.conversations (offer_id)
+    values (offer_row.id)
+    on conflict (offer_id) do update set updated_at = now()
+    returning id into conversation_id;
+
+    insert into public.conversation_participants (conversation_id, user_id)
+    values
+      (conversation_id, offer_row.receiver_id),
+      (conversation_id, offer_row.sender_id)
+    on conflict (conversation_id, user_id) do nothing;
+
+    return conversation_id;
+  elsif p_next_status = 'declined' then
+    if not actor_is_admin and offer_row.receiver_id <> actor_id then
+      raise exception 'Only the receiver can decline this offer.';
+    end if;
+
+    if offer_row.status <> 'pending' then
+      raise exception 'Only pending offers can be declined.';
+    end if;
+
+    update public.swap_offers
+    set status = 'declined',
+        updated_at = now()
+    where id = offer_row.id;
+
+    return null;
+  elsif p_next_status = 'cancelled' then
+    if not actor_is_admin and offer_row.sender_id <> actor_id then
+      raise exception 'Only the sender can cancel this offer.';
+    end if;
+
+    if offer_row.status <> 'pending' then
+      raise exception 'Only pending offers can be cancelled.';
+    end if;
+
+    update public.swap_offers
+    set status = 'cancelled',
+        updated_at = now()
+    where id = offer_row.id;
+
+    return null;
+  elsif p_next_status = 'completed' then
+    if not actor_is_admin and offer_row.receiver_id <> actor_id then
+      raise exception 'Only the receiver can complete this swap.';
+    end if;
+
+    if offer_row.status <> 'accepted' then
+      raise exception 'Only accepted offers can be completed.';
+    end if;
+
+    listing_ids := array_remove(array[offer_row.listing_id, offer_row.offered_listing_id], null);
+
+    perform 1
+    from public.listings
+    where id = any(listing_ids)
+    for update;
+
+    update public.swap_offers
+    set status = 'completed',
+        updated_at = now()
+    where id = offer_row.id;
+
+    update public.listings
+    set status = 'swapped',
+        updated_at = now()
+    where id = any(listing_ids);
+
+    update public.swap_offers
+    set status = 'declined',
+        updated_at = now()
+    where id <> offer_row.id
+      and status = 'pending'
+      and (
+        listing_id = any(listing_ids)
+        or offered_listing_id = any(listing_ids)
+      );
+
+    select id
+      into conversation_id
+    from public.conversations
+    where offer_id = offer_row.id;
+
+    return conversation_id;
+  end if;
+
+  raise exception 'Unsupported offer status transition.';
+end;
+$$;
+
+grant execute on function public.transition_swap_offer(uuid, public.offer_status) to authenticated;
+
+drop policy if exists "Offer participants can update offers" on public.swap_offers;
+drop policy if exists "Admins can update offers" on public.swap_offers;
+create policy "Admins can update offers"
+on public.swap_offers for update
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Conversation participants can read conversations" on public.conversations;
+create policy "Conversation participants can read conversations"
+on public.conversations for select
+to authenticated
+using (
+  public.is_admin()
+  or public.is_conversation_participant(id, auth.uid())
+  or exists (
+    select 1
+    from public.swap_offers so
+    where so.id = offer_id
+      and (so.sender_id = auth.uid() or so.receiver_id = auth.uid())
+  )
+);
+
+drop policy if exists "Users update own conversation read state" on public.conversation_participants;
+create policy "Users update own conversation read state"
+on public.conversation_participants for update
+to authenticated
+using (user_id = auth.uid() or public.is_admin())
+with check (user_id = auth.uid() or public.is_admin());
+
+insert into public.conversations (offer_id)
+select so.id
+from public.swap_offers so
+left join public.conversations c on c.offer_id = so.id
+where so.status in ('accepted', 'completed')
+  and c.id is null
+on conflict (offer_id) do nothing;
+
+with participant_rows as (
+  select c.id as conversation_id, so.sender_id as user_id
+  from public.conversations c
+  join public.swap_offers so on so.id = c.offer_id
+  where so.status in ('accepted', 'completed')
+  union
+  select c.id as conversation_id, so.receiver_id as user_id
+  from public.conversations c
+  join public.swap_offers so on so.id = c.offer_id
+  where so.status in ('accepted', 'completed')
+)
+insert into public.conversation_participants (conversation_id, user_id)
+select conversation_id, user_id
+from participant_rows
+on conflict (conversation_id, user_id) do nothing;
+
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1
+       from pg_publication_tables
+       where pubname = 'supabase_realtime'
+         and schemaname = 'public'
+         and tablename = 'messages'
+     ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+end $$;

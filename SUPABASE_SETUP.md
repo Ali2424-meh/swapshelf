@@ -42,6 +42,13 @@ http://localhost:3000/auth/confirm
 {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email
 ```
 
+10. Select **Reset password**.
+11. Replace the recovery link with:
+
+```txt
+{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
+```
+
 ## 4. Add local environment variables
 
 Create `.env.local` in the project root:

@@ -7,6 +7,7 @@ import {
   IconArrowLeftRight, IconBox, IconHeart, IconLayoutDashboard, IconLogOut,
   IconMessageCircle, IconPlus, IconUser,
 } from "@/components/icons";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 
 const NAV_ITEMS = [
   { href: "/dashboard",          label: "Overview",        icon: IconLayoutDashboard },
@@ -71,13 +72,13 @@ export function DashboardNav({ pendingOffers, unreadMessages }: DashboardNavProp
       {/* Divider + Logout */}
       <div className="!mt-4 border-t border-border pt-2">
         <form action={logoutAction}>
-          <button
-            type="submit"
+          <PendingSubmitButton
+            pendingChildren="Logging out..."
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-muted hover:bg-red-50 hover:text-red-600"
           >
             <IconLogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
             Log Out
-          </button>
+          </PendingSubmitButton>
         </form>
       </div>
     </nav>
